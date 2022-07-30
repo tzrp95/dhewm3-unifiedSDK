@@ -37,7 +37,7 @@ If you have questions concerning this license or the applicable additional terms
 /*
 =============================================================================
 
-  MODEL TESTING
+	MODEL TESTING
 
 Model viewing can begin with either "testmodel <modelname>"
 
@@ -53,6 +53,7 @@ move around it to view it from different angles.
   g_testModelRotate
   g_testModelAnimate
   g_testModelBlend
+  g_testModelPitch
 
 =============================================================================
 */
@@ -364,12 +365,16 @@ void idTestModel::Think( void ) {
 
 		// update rotation
 		RunPhysics();
-
 		physicsObj.GetAngles( ang );
-		physicsObj.SetAngularExtrapolation( extrapolation_t(EXTRAPOLATION_LINEAR|EXTRAPOLATION_NOSTOP), gameLocal.time, 0, ang, idAngles( 0, g_testModelRotate.GetFloat() * 360.0f / 60.0f, 0 ), ang_zero );
+		physicsObj.SetAngularExtrapolation( extrapolation_t( EXTRAPOLATION_LINEAR|EXTRAPOLATION_NOSTOP ), gameLocal.time, 0, ang, idAngles( 0, g_testModelRotate.GetFloat() * 360.0f / 60.0f, 0 ), ang_zero );
 
+		// update pitch
+		idAngles pitchAng = GetPhysics()->GetAxis().ToAngles();
+		pitchAng.pitch = g_testModelPitch.GetFloat();
+		physicsObj.SetAxis( pitchAng.ToMat3() );
+		
 		idClipModel *clip = physicsObj.GetClipModel();
-		if ( clip && animator.ModelDef() ) {
+		if ( clip != NULL && animator.ModelDef() ) {
 			idVec3 neworigin;
 			idMat3 axis;
 			jointHandle_t joint;
@@ -528,18 +533,15 @@ idTestModel::TestAnim
 ================
 */
 void idTestModel::TestAnim( const idCmdArgs &args ) {
-	idStr			name;
-	int				animNum;
+	idStr	name = args.Argv( 1 );
+	int		animNum;
 
 	if ( args.Argc() < 2 ) {
 		gameLocal.Printf( "usage: testanim <animname>\n" );
 		return;
 	}
-
-	name = args.Argv( 1 );
+	
 #if 0
-	const idAnim	*newanim = NULL;
-
 	if ( strstr( name, ".ma" ) || strstr( name, ".mb" ) ) {
 		const idMD5Anim	*md5anims[ ANIM_MaxSyncedAnims ];
 		idModelExport exporter;
@@ -594,21 +596,18 @@ idTestModel::BlendAnim
 =====================
 */
 void idTestModel::BlendAnim( const idCmdArgs &args ) {
-	int anim1;
-	int anim2;
-
 	if ( args.Argc() < 4 ) {
 		gameLocal.Printf( "usage: testblend <anim1> <anim2> <frames>\n" );
 		return;
 	}
 
-	anim1 = gameLocal.testmodel->animator.GetAnim( args.Argv( 1 ) );
+	int anim1 = gameLocal.testmodel->animator.GetAnim( args.Argv( 1 ) );
 	if ( !anim1 ) {
 		gameLocal.Printf( "Animation '%s' not found.\n", args.Argv( 1 ) );
 		return;
 	}
 
-	anim2 = gameLocal.testmodel->animator.GetAnim( args.Argv( 2 ) );
+	int anim2 = gameLocal.testmodel->animator.GetAnim( args.Argv( 2 ) );
 	if ( !anim2 ) {
 		gameLocal.Printf( "Animation '%s' not found.\n", args.Argv( 2 ) );
 		return;
@@ -655,12 +654,8 @@ Sets a skin on an existing testModel
 =================
 */
 void idTestModel::TestSkin_f( const idCmdArgs &args ) {
-	idVec3		offset;
-	idStr		name;
-	idPlayer *	player;
-	idDict		dict;
+	idPlayer *player = gameLocal.GetLocalPlayer();
 
-	player = gameLocal.GetLocalPlayer();
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -677,7 +672,7 @@ void idTestModel::TestSkin_f( const idCmdArgs &args ) {
 		return;
 	}
 
-	name = args.Argv( 1 );
+	idStr name = args.Argv( 1 );
 	gameLocal.testmodel->SetSkin( declManager->FindSkin( name ) );
 }
 
@@ -689,12 +684,7 @@ Sets a shaderParm on an existing testModel
 =================
 */
 void idTestModel::TestShaderParm_f( const idCmdArgs &args ) {
-	idVec3		offset;
-	idStr		name;
-	idPlayer *	player;
-	idDict		dict;
-
-	player = gameLocal.GetLocalPlayer();
+	idPlayer	*player = gameLocal.GetLocalPlayer();	
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -710,13 +700,13 @@ void idTestModel::TestShaderParm_f( const idCmdArgs &args ) {
 		return;
 	}
 
-	int	parm = atoi( args.Argv( 1 ) );
+	int parm = atoi( args.Argv( 1 ) );
 	if ( parm < 0 || parm >= MAX_ENTITY_SHADER_PARMS ) {
 		common->Printf( "parmNum %i out of range\n", parm );
 		return;
 	}
 
-	float	value;
+	float value;
 	if ( !idStr::Icmp( args.Argv( 2 ), "time" ) ) {
 		value = gameLocal.time * -0.001;
 	} else {
@@ -737,11 +727,10 @@ can then be moved around
 void idTestModel::TestModel_f( const idCmdArgs &args ) {
 	idVec3			offset;
 	idStr			name;
-	idPlayer *		player;
-	const idDict *	entityDef;
+	const idDict	*entityDef;
 	idDict			dict;
+	idPlayer		*player = gameLocal.GetLocalPlayer();
 
-	player = gameLocal.GetLocalPlayer();
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -771,6 +760,7 @@ void idTestModel::TestModel_f( const idCmdArgs &args ) {
 				name.DefaultFileExtension( ".ase" );
 			}
 
+			// Maya ascii format is supported natively now
 			if ( strstr( name, ".ma" ) || strstr( name, ".mb" ) ) {
 				idModelExport exporter;
 				exporter.ExportModel( name );

@@ -36,11 +36,13 @@ If you have questions concerning this license or the applicable additional terms
 
 bool idAnimManager::forceExport = false;
 
-/***********************************************************************
+/*
+===============================================================================
 
 	idMD5Anim
 
-***********************************************************************/
+===============================================================================
+*/
 
 /*
 ====================
@@ -89,7 +91,7 @@ void idMD5Anim::Free( void ) {
 idMD5Anim::NumFrames
 ====================
 */
-int	idMD5Anim::NumFrames( void ) const {
+int idMD5Anim::NumFrames( void ) const {
 	return numFrames;
 }
 
@@ -98,7 +100,7 @@ int	idMD5Anim::NumFrames( void ) const {
 idMD5Anim::NumJoints
 ====================
 */
-int	idMD5Anim::NumJoints( void ) const {
+int idMD5Anim::NumJoints( void ) const {
 	return numJoints;
 }
 
@@ -135,9 +137,7 @@ idMD5Anim::Reload
 ====================
 */
 bool idMD5Anim::Reload( void ) {
-	idStr filename;
-
-	filename = name;
+	idStr filename = name;
 	Free();
 
 	return LoadAnim( filename );
@@ -149,7 +149,7 @@ idMD5Anim::Allocated
 ====================
 */
 size_t idMD5Anim::Allocated( void ) const {
-	size_t	size = bounds.Allocated() + jointInfo.Allocated() + componentFrames.Allocated() + name.Allocated();
+	size_t size = bounds.Allocated() + jointInfo.Allocated() + componentFrames.Allocated() + name.Allocated();
 	return size;
 }
 
@@ -159,9 +159,9 @@ idMD5Anim::LoadAnim
 ====================
 */
 bool idMD5Anim::LoadAnim( const char *filename ) {
-	int		version;
 	idLexer	parser( LEXFL_ALLOWPATHNAMES | LEXFL_NOSTRINGESCAPECHARS | LEXFL_NOSTRINGCONCAT );
 	idToken	token;
+	int		version;
 	int		i, j;
 	int		num;
 
@@ -264,8 +264,8 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 	for( i = 0; i < numJoints; i++ ) {
 		idCQuat q;
 		parser.Parse1DMatrix( 3, baseFrame[ i ].t.ToFloatPtr() );
-		parser.Parse1DMatrix( 3, q.ToFloatPtr() );//baseFrame[ i ].q.ToFloatPtr() );
-		baseFrame[ i ].q = q.ToQuat();//.w = baseFrame[ i ].q.CalcW();
+		parser.Parse1DMatrix( 3, q.ToFloatPtr() );
+		baseFrame[ i ].q = q.ToQuat();
 	}
 	parser.ExpectTokenString( "}" );
 
@@ -324,7 +324,7 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 	baseFrame[ 0 ].t.Zero();
 
 	// we don't count last frame because it would cause a 1 frame pause at the end
-	animLength = ( ( numFrames - 1 ) * 1000 + frameRate - 1 ) / frameRate;
+	animLength = ( SEC2MS( numFrames - 1 ) + frameRate - 1 ) / frameRate;
 
 	// done
 	return true;
@@ -385,9 +385,6 @@ idMD5Anim::ConvertTimeToFrame
 ====================
 */
 void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &frame ) const {
-	int frameTime;
-	int frameNum;
-
 	if ( numFrames <= 1 ) {
 		frame.frame1		= 0;
 		frame.frame2		= 0;
@@ -406,8 +403,8 @@ void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &fram
 		return;
 	}
 
-	frameTime			= time * frameRate;
-	frameNum			= frameTime / 1000;
+	int frameTime			= time * frameRate;
+	int frameNum			= MS2SEC( frameTime );
 	frame.cycleCount	= frameNum / ( numFrames - 1 );
 
 	if ( ( cyclecount > 0 ) && ( frame.cycleCount >= cyclecount ) ) {
@@ -425,7 +422,7 @@ void idMD5Anim::ConvertTimeToFrame( int time, int cyclecount, frameBlend_t &fram
 		frame.frame2 = 0;
 	}
 
-	frame.backlerp	= ( frameTime % 1000 ) * 0.001f;
+	frame.backlerp	= MS2SEC( frameTime % 1000 );
 	frame.frontlerp	= 1.0f - frame.backlerp;
 }
 
@@ -475,10 +472,9 @@ idMD5Anim::GetOriginRotation
 ====================
 */
 void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) const {
-	frameBlend_t	frame;
-	int				animBits;
+	frameBlend_t frame;
+	int animBits = jointInfo[ 0 ].animBits;
 
-	animBits = jointInfo[ 0 ].animBits;
 	if ( !( animBits & ( ANIM_QX | ANIM_QY | ANIM_QZ ) ) ) {
 		// just use the baseframe
 		rotation = baseFrame[ 0 ].q;
@@ -508,7 +504,7 @@ void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) 
 	idQuat q1;
 	idQuat q2;
 
-	switch( animBits & (ANIM_QX|ANIM_QY|ANIM_QZ) ) {
+	switch( animBits & ( ANIM_QX | ANIM_QY | ANIM_QZ ) ) {
 		case ANIM_QX:
 			q1.x = jointframe1[0];
 			q2.x = jointframe2[0];
@@ -539,7 +535,7 @@ void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) 
 			q1.w = q1.CalcW();
 			q2.w = q2.CalcW();
 			break;
-		case ANIM_QX|ANIM_QY:
+		case ANIM_QX | ANIM_QY:
 			q1.x = jointframe1[0];
 			q1.y = jointframe1[1];
 			q2.x = jointframe2[0];
@@ -549,7 +545,7 @@ void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) 
 			q1.w = q1.CalcW();
 			q2.w = q2.CalcW();
 			break;
-		case ANIM_QX|ANIM_QZ:
+		case ANIM_QX | ANIM_QZ:
 			q1.x = jointframe1[0];
 			q1.z = jointframe1[1];
 			q2.x = jointframe2[0];
@@ -559,7 +555,7 @@ void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) 
 			q1.w = q1.CalcW();
 			q2.w = q2.CalcW();
 			break;
-		case ANIM_QY|ANIM_QZ:
+		case ANIM_QY | ANIM_QZ:
 			q1.y = jointframe1[0];
 			q1.z = jointframe1[1];
 			q2.y = jointframe2[0];
@@ -569,7 +565,7 @@ void idMD5Anim::GetOriginRotation( idQuat &rotation, int time, int cyclecount ) 
 			q1.w = q1.CalcW();
 			q2.w = q2.CalcW();
 			break;
-		case ANIM_QX|ANIM_QY|ANIM_QZ:
+		case ANIM_QX | ANIM_QY | ANIM_QZ:
 			q1.x = jointframe1[0];
 			q1.y = jointframe1[1];
 			q1.z = jointframe1[2];
@@ -646,13 +642,13 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 	// copy the baseframe
 	SIMDProcessor->Memcpy( joints, baseFrame.Ptr(), baseFrame.Num() * sizeof( baseFrame[ 0 ] ) );
 
-	if ( !numAnimatedComponents ) {
+	if ( numAnimatedComponents == 0 ) {
 		// just use the base frame
 		return;
 	}
 
-	blendJoints = (idJointQuat *)_alloca16( baseFrame.Num() * sizeof( blendPtr[ 0 ] ) );
-	lerpIndex = (int *)_alloca16( baseFrame.Num() * sizeof( lerpIndex[ 0 ] ) );
+	blendJoints = ( idJointQuat* )_alloca16( baseFrame.Num() * sizeof( blendPtr[ 0 ] ) );
+	lerpIndex = ( int* )_alloca16( baseFrame.Num() * sizeof( lerpIndex[ 0 ] ) );
 	numLerpJoints = 0;
 
 	frame1 = &componentFrames[ frame.frame1 * numAnimatedComponents ];
@@ -672,7 +668,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 			jointframe1 = frame1 + infoPtr->firstComponent;
 			jointframe2 = frame2 + infoPtr->firstComponent;
 
-			switch( animBits & (ANIM_TX|ANIM_TY|ANIM_TZ) ) {
+			switch( animBits & ( ANIM_TX | ANIM_TY | ANIM_TZ ) ) {
 				case 0:
 					blendPtr->t = jointPtr->t;
 					break;
@@ -700,7 +696,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointframe1++;
 					jointframe2++;
 					break;
-				case ANIM_TX|ANIM_TY:
+				case ANIM_TX | ANIM_TY:
 					jointPtr->t.x = jointframe1[0];
 					jointPtr->t.y = jointframe1[1];
 					blendPtr->t.x = jointframe2[0];
@@ -709,7 +705,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointframe1 += 2;
 					jointframe2 += 2;
 					break;
-				case ANIM_TX|ANIM_TZ:
+				case ANIM_TX | ANIM_TZ:
 					jointPtr->t.x = jointframe1[0];
 					jointPtr->t.z = jointframe1[1];
 					blendPtr->t.x = jointframe2[0];
@@ -718,7 +714,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointframe1 += 2;
 					jointframe2 += 2;
 					break;
-				case ANIM_TY|ANIM_TZ:
+				case ANIM_TY | ANIM_TZ:
 					jointPtr->t.y = jointframe1[0];
 					jointPtr->t.z = jointframe1[1];
 					blendPtr->t.y = jointframe2[0];
@@ -727,7 +723,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointframe1 += 2;
 					jointframe2 += 2;
 					break;
-				case ANIM_TX|ANIM_TY|ANIM_TZ:
+				case ANIM_TX | ANIM_TY | ANIM_TZ:
 					jointPtr->t.x = jointframe1[0];
 					jointPtr->t.y = jointframe1[1];
 					jointPtr->t.z = jointframe1[2];
@@ -739,7 +735,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					break;
 			}
 
-			switch( animBits & (ANIM_QX|ANIM_QY|ANIM_QZ) ) {
+			switch( animBits & ( ANIM_QX | ANIM_QY | ANIM_QZ ) ) {
 				case 0:
 					blendPtr->q = jointPtr->q;
 					break;
@@ -767,7 +763,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointPtr->q.w = jointPtr->q.CalcW();
 					blendPtr->q.w = blendPtr->q.CalcW();
 					break;
-				case ANIM_QX|ANIM_QY:
+				case ANIM_QX | ANIM_QY:
 					jointPtr->q.x = jointframe1[0];
 					jointPtr->q.y = jointframe1[1];
 					blendPtr->q.x = jointframe2[0];
@@ -776,7 +772,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointPtr->q.w = jointPtr->q.CalcW();
 					blendPtr->q.w = blendPtr->q.CalcW();
 					break;
-				case ANIM_QX|ANIM_QZ:
+				case ANIM_QX | ANIM_QZ:
 					jointPtr->q.x = jointframe1[0];
 					jointPtr->q.z = jointframe1[1];
 					blendPtr->q.x = jointframe2[0];
@@ -785,7 +781,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointPtr->q.w = jointPtr->q.CalcW();
 					blendPtr->q.w = blendPtr->q.CalcW();
 					break;
-				case ANIM_QY|ANIM_QZ:
+				case ANIM_QY | ANIM_QZ:
 					jointPtr->q.y = jointframe1[0];
 					jointPtr->q.z = jointframe1[1];
 					blendPtr->q.y = jointframe2[0];
@@ -794,7 +790,7 @@ void idMD5Anim::GetInterpolatedFrame( frameBlend_t &frame, idJointQuat *joints, 
 					jointPtr->q.w = jointPtr->q.CalcW();
 					blendPtr->q.w = blendPtr->q.CalcW();
 					break;
-				case ANIM_QX|ANIM_QY|ANIM_QZ:
+				case ANIM_QX | ANIM_QY | ANIM_QZ:
 					jointPtr->q.x = jointframe1[0];
 					jointPtr->q.y = jointframe1[1];
 					jointPtr->q.z = jointframe1[2];
@@ -845,11 +841,9 @@ void idMD5Anim::GetSingleFrame( int framenum, idJointQuat *joints, const int *in
 
 		animBits = infoPtr->animBits;
 		if ( animBits ) {
-
 			jointframe = frame + infoPtr->firstComponent;
 
-			if ( animBits & (ANIM_TX|ANIM_TY|ANIM_TZ) ) {
-
+			if ( animBits & ( ANIM_TX | ANIM_TY | ANIM_TZ ) ) {
 				if ( animBits & ANIM_TX ) {
 					jointPtr->t.x = *jointframe++;
 				}
@@ -863,8 +857,7 @@ void idMD5Anim::GetSingleFrame( int framenum, idJointQuat *joints, const int *in
 				}
 			}
 
-			if ( animBits & (ANIM_QX|ANIM_QY|ANIM_QZ) ) {
-
+			if ( animBits & ( ANIM_QX | ANIM_QY | ANIM_QZ ) ) {
 				if ( animBits & ANIM_QX ) {
 					jointPtr->q.x = *jointframe++;
 				}
@@ -914,11 +907,13 @@ void idMD5Anim::CheckModelHierarchy( const idRenderModel *model ) const {
 	}
 }
 
-/***********************************************************************
+/*
+===============================================================================
 
 	idAnimManager
 
-***********************************************************************/
+===============================================================================
+*/
 
 /*
 ====================
@@ -967,6 +962,7 @@ idMD5Anim *idAnimManager::GetAnim( const char *name ) {
 
 		filename.ExtractFileExtension( extension );
 		if ( extension != MD5_ANIM_EXT ) {
+			gameLocal.Warning( "Animation '%s' doesn't have the correct extension for an animation file.", filename.c_str() );
 			return NULL;
 		}
 
@@ -988,12 +984,9 @@ idAnimManager::ReloadAnims
 ================
 */
 void idAnimManager::ReloadAnims( void ) {
-	int			i;
-	idMD5Anim	**animptr;
-
-	for( i = 0; i < animations.Num(); i++ ) {
-		animptr = animations.GetIndex( i );
-		if ( animptr && *animptr ) {
+	for( int i = 0; i < animations.Num(); i++ ) {
+		idMD5Anim **animptr = animations.GetIndex( i );
+		if ( animptr != NULL && *animptr != NULL ) {
 			( *animptr )->Reload();
 		}
 	}
@@ -1005,9 +998,9 @@ idAnimManager::JointIndex
 ================
 */
 int	idAnimManager::JointIndex( const char *name ) {
-	int i, hash;
+	int i;
+	int hash = jointnamesHash.GenerateKey( name );
 
-	hash = jointnamesHash.GenerateKey( name );
 	for ( i = jointnamesHash.First( hash ); i != -1; i = jointnamesHash.Next( i ) ) {
 		if ( jointnames[i].Cmp( name ) == 0 ) {
 			return i;
@@ -1037,16 +1030,14 @@ void idAnimManager::ListAnims( void ) const {
 	int			i;
 	idMD5Anim	**animptr;
 	idMD5Anim	*anim;
-	size_t		size;
+	size_t		size = 0;
 	size_t		s;
 	size_t		namesize;
-	int			num;
+	int			num = 0;
 
-	num = 0;
-	size = 0;
 	for( i = 0; i < animations.Num(); i++ ) {
 		animptr = animations.GetIndex( i );
-		if ( animptr && *animptr ) {
+		if ( animptr != NULL && *animptr != NULL ) {
 			anim = *animptr;
 			s = anim->Size();
 			gameLocal.Printf( "%8zd bytes : %2d refs : %s\n", s, anim->NumRefs(), anim->Name() );
@@ -1070,13 +1061,13 @@ idAnimManager::FlushUnusedAnims
 ================
 */
 void idAnimManager::FlushUnusedAnims( void ) {
-	int						i;
-	idMD5Anim				**animptr;
-	idList<idMD5Anim *>		removeAnims;
+	int					i;
+	idMD5Anim			**animptr;
+	idList<idMD5Anim*>	removeAnims;
 
 	for( i = 0; i < animations.Num(); i++ ) {
 		animptr = animations.GetIndex( i );
-		if ( animptr && *animptr ) {
+		if ( animptr != NULL && *animptr != NULL ) {
 			if ( ( *animptr )->NumRefs() <= 0 ) {
 				removeAnims.Append( *animptr );
 			}

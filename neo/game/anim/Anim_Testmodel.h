@@ -78,7 +78,7 @@ public:
 
 private:
 	idEntityPtr<idEntity>	head;
-	idAnimator				*headAnimator;
+	idAnimator *			headAnimator;
 	idAnim					customAnim;
 	idPhysics_Parametric	physicsObj;
 	idStr					animname;
