@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "sys/platform.h"
+
 #include "gamesys/SysCvar.h"
 #include "ai/AI.h"
 #include "Player.h"
@@ -49,11 +50,11 @@ void idAASLocal::DrawCone( const idVec3 &origin, const idVec3 &dir, float radius
 	axis[1] = -axis[1];
 
 	center = origin + dir;
-	top = center + dir * (3.0f * radius);
+	top = center + dir * ( 3.0f * radius );
 	lastp = center + radius * axis[1];
 
 	for ( i = 20; i <= 360; i += 20 ) {
-		p = center + sin( DEG2RAD(i) ) * radius * axis[0] + cos( DEG2RAD(i) ) * radius * axis[1];
+		p = center + idMath::Sin( DEG2RAD( i ) ) * radius * axis[0] + idMath::Cos( DEG2RAD( i ) ) * radius * axis[1];
 		gameRenderWorld->DebugLine( color, lastp, p, 0 );
 		gameRenderWorld->DebugLine( color, p, top, 0 );
 		lastp = p;
@@ -82,7 +83,7 @@ void idAASLocal::DrawEdge( int edgeNum, bool arrow ) const {
 	const aasEdge_t *edge;
 	idVec4 *color;
 
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
@@ -109,13 +110,17 @@ void idAASLocal::DrawFace( int faceNum, bool side ) const {
 	const aasFace_t *face;
 	idVec3 mid, end;
 
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
 	face = &file->GetFace( faceNum );
 	numEdges = face->numEdges;
 	firstEdge = face->firstEdge;
+
+	if ( !numEdges ) {	// wtf? A face with no edges?!
+		return;
+	}
 
 	mid = vec3_origin;
 	for ( i = 0; i < numEdges; i++ ) {
@@ -143,7 +148,7 @@ void idAASLocal::DrawArea( int areaNum ) const {
 	const aasArea_t *area;
 	idReachability *reach;
 
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
@@ -180,7 +185,7 @@ void idAASLocal::ShowArea( const idVec3 &origin ) const {
 	const aasArea_t *area;
 	idVec3 org;
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK | AREA_REACHABLE_FLY ) );
 	org = origin;
 	PushPointIntoAreaNum( areaNum, org );
 
@@ -188,7 +193,7 @@ void idAASLocal::ShowArea( const idVec3 &origin ) const {
 		int travelTime;
 		idReachability *reach;
 
-		RouteToGoalArea( areaNum, org, aas_goalArea.GetInteger(), TFL_WALK|TFL_AIR, travelTime, &reach );
+		RouteToGoalArea( areaNum, org, aas_goalArea.GetInteger(), TFL_WALK | TFL_AIR, travelTime, &reach );
 		gameLocal.Printf( "\rtt = %4d", travelTime );
 		if ( reach ) {
 			gameLocal.Printf( " to area %4d", reach->toAreaNum );
@@ -238,7 +243,7 @@ void idAASLocal::ShowWalkPath( const idVec3 &origin, int goalAreaNum, const idVe
 	idVec3 org, areaCenter;
 	aasPath_t path;
 
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
@@ -248,8 +253,7 @@ void idAASLocal::ShowWalkPath( const idVec3 &origin, int goalAreaNum, const idVe
 	curAreaNum = areaNum;
 
 	for ( i = 0; i < 100; i++ ) {
-
-		if ( !RouteToGoalArea( curAreaNum, org, goalAreaNum, TFL_WALK|TFL_AIR, travelTime, &reach ) ) {
+		if ( !RouteToGoalArea( curAreaNum, org, goalAreaNum, TFL_WALK | TFL_AIR, travelTime, &reach ) ) {
 			break;
 		}
 
@@ -268,7 +272,7 @@ void idAASLocal::ShowWalkPath( const idVec3 &origin, int goalAreaNum, const idVe
 		org = reach->end;
 	}
 
-	if ( WalkPathToGoal( path, areaNum, origin, goalAreaNum, goalOrigin, TFL_WALK|TFL_AIR ) ) {
+	if ( WalkPathToGoal( path, areaNum, origin, goalAreaNum, goalOrigin, TFL_WALK | TFL_AIR ) ) {
 		gameRenderWorld->DebugArrow( colorBlue, origin, path.moveGoal, 2 );
 	}
 }
@@ -284,7 +288,7 @@ void idAASLocal::ShowFlyPath( const idVec3 &origin, int goalAreaNum, const idVec
 	idVec3 org, areaCenter;
 	aasPath_t path;
 
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
@@ -294,8 +298,7 @@ void idAASLocal::ShowFlyPath( const idVec3 &origin, int goalAreaNum, const idVec
 	curAreaNum = areaNum;
 
 	for ( i = 0; i < 100; i++ ) {
-
-		if ( !RouteToGoalArea( curAreaNum, org, goalAreaNum, TFL_WALK|TFL_FLY|TFL_AIR, travelTime, &reach ) ) {
+		if ( !RouteToGoalArea( curAreaNum, org, goalAreaNum, TFL_WALK | TFL_FLY | TFL_AIR, travelTime, &reach ) ) {
 			break;
 		}
 
@@ -314,7 +317,7 @@ void idAASLocal::ShowFlyPath( const idVec3 &origin, int goalAreaNum, const idVec
 		org = reach->end;
 	}
 
-	if ( FlyPathToGoal( path, areaNum, origin, goalAreaNum, goalOrigin, TFL_WALK|TFL_FLY|TFL_AIR ) ) {
+	if ( FlyPathToGoal( path, areaNum, origin, goalAreaNum, goalOrigin, TFL_WALK | TFL_FLY | TFL_AIR ) ) {
 		gameRenderWorld->DebugArrow( colorBlue, origin, path.moveGoal, 2 );
 	}
 }
@@ -327,14 +330,13 @@ idAASLocal::ShowWallEdges
 void idAASLocal::ShowWallEdges( const idVec3 &origin ) const {
 	int i, areaNum, numEdges, edges[1024];
 	idVec3 start, end;
-	idPlayer *player;
 
-	player = gameLocal.GetLocalPlayer();
-	if ( !player ) {
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	if ( player == NULL ) {
 		return;
 	}
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK | AREA_REACHABLE_FLY ) );
 	numEdges = GetWallEdges( areaNum, idBounds( origin ).Expand( 256.0f ), TFL_WALK, edges, 1024 );
 	for ( i = 0; i < numEdges; i++ ) {
 		GetEdge( edges[i], start, end );
@@ -354,7 +356,7 @@ void idAASLocal::ShowHideArea( const idVec3 &origin, int targetAreaNum ) const {
 	aasGoal_t goal;
 	aasObstacle_t obstacles[10];
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK | AREA_REACHABLE_FLY ) );
 	target = AreaCenter( targetAreaNum );
 
 	// consider the target an obstacle
@@ -364,7 +366,7 @@ void idAASLocal::ShowHideArea( const idVec3 &origin, int targetAreaNum ) const {
 	DrawCone( target, idVec3(0,0,1), 16.0f, colorYellow );
 
 	idAASFindCover findCover( target );
-	if ( FindNearestGoal( goal, areaNum, origin, target, TFL_WALK|TFL_AIR, obstacles, numObstacles, findCover ) ) {
+	if ( FindNearestGoal( goal, areaNum, origin, target, TFL_WALK | TFL_AIR, obstacles, numObstacles, findCover ) ) {
 		DrawArea( goal.areaNum );
 		ShowWalkPath( origin, goal.areaNum, goal.origin );
 		DrawCone( goal.origin, idVec3(0,0,1), 16.0f, colorWhite );
@@ -381,10 +383,9 @@ bool idAASLocal::PullPlayer( const idVec3 &origin, int toAreaNum ) const {
 	idVec3 areaCenter, dir, vel;
 	idAngles delta;
 	aasPath_t path;
-	idPlayer *player;
 
-	player = gameLocal.GetLocalPlayer();
-	if ( !player ) {
+	idPlayer *player = gameLocal.GetLocalPlayer();
+	if ( player == NULL ) {
 		return true;
 	}
 
@@ -397,12 +398,13 @@ bool idAASLocal::PullPlayer( const idVec3 &origin, int toAreaNum ) const {
 		return false;
 	}
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK| AREA_REACHABLE_FLY ) );
 	areaCenter = AreaCenter( toAreaNum );
 	if ( player->GetPhysics()->GetAbsBounds().Expand( 8 ).ContainsPoint( areaCenter ) ) {
 		return false;
 	}
-	if ( WalkPathToGoal( path, areaNum, origin, toAreaNum, areaCenter, TFL_WALK|TFL_AIR ) ) {
+
+	if ( WalkPathToGoal( path, areaNum, origin, toAreaNum, areaCenter, TFL_WALK | TFL_AIR ) ) {
 		dir = path.moveGoal - origin;
 		dir[2] *= 0.5f;
 		dir.Normalize();
@@ -416,8 +418,7 @@ bool idAASLocal::PullPlayer( const idVec3 &origin, int toAreaNum ) const {
 		dir[2] = vel[2];
 		physics->SetLinearVelocity( dir );
 		return true;
-	}
-	else {
+	} else {
 		return false;
 	}
 }
@@ -431,12 +432,11 @@ void idAASLocal::RandomPullPlayer( const idVec3 &origin ) const {
 	int rnd, i, n;
 
 	if ( !PullPlayer( origin, aas_pullPlayer.GetInteger() ) ) {
-
 		rnd = gameLocal.random.RandomFloat() * file->GetNumAreas();
 
 		for ( i = 0; i < file->GetNumAreas(); i++ ) {
-			n = (rnd + i) % file->GetNumAreas();
-			if ( file->GetArea( n ).flags & (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) ) {
+			n = ( rnd + i ) % file->GetNumAreas();
+			if ( file->GetArea( n ).flags & ( AREA_REACHABLE_WALK | AREA_REACHABLE_FLY ) ) {
 				aas_pullPlayer.SetInteger( n );
 			}
 		}
@@ -451,11 +451,9 @@ idAASLocal::ShowPushIntoArea
 ============
 */
 void idAASLocal::ShowPushIntoArea( const idVec3 &origin ) const {
-	int areaNum;
-	idVec3 target;
+	idVec3 target = origin;
+	int areaNum = PointReachableAreaNum( target, DefaultSearchBounds(), ( AREA_REACHABLE_WALK | AREA_REACHABLE_FLY ) );
 
-	target = origin;
-	areaNum = PointReachableAreaNum( target, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
 	PushPointIntoAreaNum( areaNum, target );
 	gameRenderWorld->DebugArrow( colorGreen, origin, target, 1 );
 }
@@ -466,8 +464,7 @@ idAASLocal::Test
 ============
 */
 void idAASLocal::Test( const idVec3 &origin ) {
-
-	if ( !file ) {
+	if ( file == NULL ) {
 		return;
 	}
 
@@ -489,6 +486,10 @@ void idAASLocal::Test( const idVec3 &origin ) {
 	}
 	if ( aas_showAreas.GetBool() ) {
 		ShowArea( origin );
+	}
+	if ( aas_showAll.GetBool() ) {	
+		for ( int i = 0; i < file->GetNumAreas(); ++i )
+		DrawArea( i );
 	}
 	if ( aas_showWallEdges.GetBool() ) {
 		ShowWallEdges( origin );

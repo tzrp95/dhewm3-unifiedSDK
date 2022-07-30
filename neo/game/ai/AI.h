@@ -34,6 +34,10 @@ If you have questions concerning this license or the applicable additional terms
 #include "Actor.h"
 #include "Projectile.h"
 
+class idAI;
+class idPathCorner;
+class idFuncEmitter;
+
 /*
 ===============================================================================
 
@@ -94,10 +98,8 @@ typedef enum {
 	NUM_TALK_STATES
 } talkState_t;
 
-//
 // status results from move commands
 // make sure to change script/doom_defs.script if you add any, or change their order
-//
 typedef enum {
 	MOVE_STATUS_DONE,
 	MOVE_STATUS_MOVING,
@@ -112,6 +114,12 @@ typedef enum {
 
 #define	DI_NODIR	-1
 
+typedef struct ballistics_s {
+	float			angle;		// angle in degrees in the range [-180, 180]
+	float			time;		// time it takes before the projectile arrives
+} ballistics_t;
+extern int Ballistics( const idVec3 &start, const idVec3 &end, float speed, float gravity, ballistics_t bal[2] );
+
 // obstacle avoidance
 typedef struct obstaclePath_s {
 	idVec3				seekPos;					// seek position avoiding obstacles
@@ -124,11 +132,11 @@ typedef struct obstaclePath_s {
 
 // path prediction
 typedef enum {
-	SE_BLOCKED			= BIT(0),
-	SE_ENTER_LEDGE_AREA	= BIT(1),
-	SE_ENTER_OBSTACLE	= BIT(2),
-	SE_FALL				= BIT(3),
-	SE_LAND				= BIT(4)
+	SE_BLOCKED			= BIT( 0 ),
+	SE_ENTER_LEDGE_AREA	= BIT( 1 ),
+	SE_ENTER_OBSTACLE	= BIT( 2 ),
+	SE_FALL				= BIT( 3 ),
+	SE_LAND				= BIT( 4 )
 } stopEvent_t;
 
 typedef struct predictedPath_s {
@@ -140,15 +148,17 @@ typedef struct predictedPath_s {
 	const idEntity *	blockingEntity;				// entity that blocks the movement
 } predictedPath_t;
 
-//
 // events
-//
 extern const idEventDef AI_BeginAttack;
 extern const idEventDef AI_EndAttack;
 extern const idEventDef AI_MuzzleFlash;
 extern const idEventDef AI_CreateMissile;
 extern const idEventDef AI_AttackMissile;
 extern const idEventDef AI_FireMissileAtTarget;
+extern const idEventDef AI_LaunchProjectile;
+extern const idEventDef AI_TriggerFX;
+extern const idEventDef AI_StartEmitter;
+extern const idEventDef AI_StopEmitter;
 extern const idEventDef AI_AttackMelee;
 extern const idEventDef AI_DirectDamage;
 extern const idEventDef AI_JumpFrame;
@@ -159,18 +169,22 @@ extern const idEventDef AI_DisableGravity;
 extern const idEventDef AI_TriggerParticles;
 extern const idEventDef AI_RandomPath;
 
-class idPathCorner;
-
 typedef struct particleEmitter_s {
 	particleEmitter_s() {
 		particle = NULL;
 		time = 0;
 		joint = INVALID_JOINT;
 	};
-	const idDeclParticle *particle;
-	int					time;
-	jointHandle_t		joint;
+	const idDeclParticle *	particle;
+	int						time;
+	jointHandle_t			joint;
 } particleEmitter_t;
+
+typedef struct funcEmitter_s {
+	char				name[64];
+	idFuncEmitter *		particle;
+	jointHandle_t		joint;
+} funcEmitter_t;
 
 class idMoveState {
 public:
@@ -223,8 +237,6 @@ private:
 	float				maxDistSqr;
 };
 
-class idAI;
-
 class idAASFindAttackPosition : public idAASCallback {
 public:
 						idAASFindAttackPosition( const idAI *self, const idMat3 &gravityAxis, idEntity *target, const idVec3 &targetPos, const idVec3 &fireOffset );
@@ -233,8 +245,8 @@ public:
 	virtual bool		TestArea( const idAAS *aas, int areaNum );
 
 private:
-	const idAI			*self;
-	idEntity			*target;
+	const idAI	*		self;
+	idEntity	*		target;
 	idBounds			excludeBounds;
 	idVec3				targetPos;
 	idVec3				fireOffset;
@@ -254,14 +266,15 @@ public:
 	void					Restore( idRestoreGame *savefile );
 
 	void					Spawn( void );
-	void					HeardSound( idEntity *ent, const char *action );
-	idActor					*GetEnemy( void ) const;
+	idActor *				GetEnemy( void ) const;
 	void					TalkTo( idActor *actor );
 	talkState_t				GetTalkState( void ) const;
 
 	bool					GetAimDir( const idVec3 &firePos, idEntity *aimAtEnt, const idEntity *ignore, idVec3 &aimDir ) const;
 
 	void					TouchedByFlashlight( idActor *flashlight_owner );
+
+	int						ReactionTo( const idEntity *ent );
 
 							// Outputs a list of all monsters to the console.
 	static void				List_f( const idCmdArgs &args );
@@ -276,6 +289,8 @@ public:
 	static bool				TestTrajectory( const idVec3 &start, const idVec3 &end, float zVel, float gravity, float time, float max_height, const idClipModel *clip, int clipmask, const idEntity *ignore, const idEntity *targetEntity, int drawtime );
 							// Finds the best collision free trajectory for a clip model.
 	static bool				PredictTrajectory( const idVec3 &firePos, const idVec3 &target, float projectileSpeed, const idVec3 &projGravity, const idClipModel *clip, int clipmask, float max_height, const idEntity *ignore, const idEntity *targetEntity, int drawtime, idVec3 &aimDir );
+
+	virtual void			Gib( const idVec3 &dir, const char *damageDefName );
 
 protected:
 	// navigation
@@ -332,16 +347,17 @@ protected:
 	idList<idVec3>			missileLaunchOffset;
 
 	const idDict *			projectileDef;
-	mutable idClipModel		*projectileClipModel;
+	mutable idClipModel *	projectileClipModel;
 	float					projectileRadius;
 	float					projectileSpeed;
 	idVec3					projectileVelocity;
 	idVec3					projectileGravity;
 	idEntityPtr<idProjectile> projectile;
 	idStr					attack;
+	idVec3					homingMissileGoal;
 
 	// chatter/talking
-	const idSoundShader		*chat_snd;
+	const idSoundShader *	chat_snd;
 	int						chat_min;
 	int						chat_max;
 	int						chat_time;
@@ -399,6 +415,12 @@ protected:
 	idVec3					lastReachableEnemyPos;
 	bool					wakeOnFlashlight;
 
+	bool					spawnClearMoveables;
+
+	idHashTable<funcEmitter_t> funcEmitters;
+
+	idEntityPtr<idHarvestable>	harvestEnt;
+
 	// script variables
 	idScriptBool			AI_TALK;
 	idScriptBool			AI_DAMAGE;
@@ -420,16 +442,12 @@ protected:
 	idScriptBool			AI_HIT_ENEMY;
 	idScriptBool			AI_PUSHED;
 
-	//
 	// ai/ai.cpp
-	//
 	void					SetAAS( void );
 	virtual	void			DormantBegin( void );	// called when entity becomes dormant
 	virtual	void			DormantEnd( void );		// called when entity wakes from being dormant
 	void					Think( void );
 	void					Activate( idEntity *activator );
-	int						ReactionTo( const idEntity *ent );
-	bool					CheckForEnemy( void );
 	void					EnemyDead( void );
 	virtual bool			CanPlayChatterSounds( void ) const;
 	void					SetChatSound( void );
@@ -490,9 +508,8 @@ protected:
 	bool					NewWanderDir( const idVec3 &dest );
 
 	// effects
-	const idDeclParticle	*SpawnParticlesOnJoint( particleEmitter_t &pe, const char *particleName, const char *jointName );
+	const idDeclParticle *	SpawnParticlesOnJoint( particleEmitter_t &pe, const char *particleName, const char *jointName );
 	void					SpawnParticles( const char *keyName );
-	bool					ParticlesActive( void );
 
 	// turning
 	bool					FacingIdeal( void );
@@ -509,9 +526,9 @@ protected:
 
 	// attacks
 	void					CreateProjectileClipModel( void ) const;
-	idProjectile			*CreateProjectile( const idVec3 &pos, const idVec3 &dir );
+	idProjectile *			CreateProjectile( const idVec3 &pos, const idVec3 &dir );
 	void					RemoveProjectile( void );
-	idProjectile			*LaunchProjectile( const char *jointname, idEntity *target, bool clampToAttackCone );
+	idProjectile *			LaunchProjectile( const char *jointname, idEntity *target, bool clampToAttackCone );
 	virtual void			DamageFeedback( idEntity *victim, idEntity *inflictor, int &damage );
 	void					DirectDamage( const char *meleeDefName, idEntity *ent );
 	bool					TestMelee( void ) const;
@@ -529,13 +546,16 @@ protected:
 	void					UpdateParticles( void );
 	void					TriggerParticles( const char *jointName );
 
+	void					TriggerFX( const char *joint, const char *fx );
+	idEntity *				StartEmitter( const char *name, const char *joint, const char *particle );
+	idEntity *				GetEmitter( const char *name );
+	void					StopEmitter( const char *name );
+
 	// AI script state management
 	void					LinkScriptVariables( void );
 	void					UpdateAIScript( void );
 
-	//
 	// ai/ai_events.cpp
-	//
 	void					Event_Activate( idEntity *activator );
 	void					Event_Touch( idEntity *other, trace_t *trace );
 	void					Event_FindEnemy( int useFOV );
@@ -550,6 +570,9 @@ protected:
 	void					Event_AttackMissile( const char *jointname );
 	void					Event_FireMissileAtTarget( const char *jointname, const char *targetname );
 	void					Event_LaunchMissile( const idVec3 &muzzle, const idAngles &ang );
+	void					Event_LaunchHomingMissile( void );
+	void					Event_SetHomingMissileGoal( void );
+	void					Event_LaunchProjectile( const char *entityDefName );
 	void					Event_AttackMelee( const char *meleeDefName );
 	void					Event_DirectDamage( idEntity *damageTarget, const char *damageDefName );
 	void					Event_RadiusDamageFromJoint( const char *jointname, const char *damageDefName );
@@ -647,6 +670,7 @@ protected:
 	void					Event_ThrowAF( void );
 	void					Event_SetAngles( idAngles const &ang );
 	void					Event_GetAngles( void );
+	void					Event_GetTrajectoryToPlayer( void );
 	void					Event_RealKill( void );
 	void					Event_Kill( void );
 	void					Event_WakeOnFlashlight( int enable );
@@ -664,6 +688,12 @@ protected:
 	void					Event_CanReachEntity( idEntity *ent );
 	void					Event_CanReachEnemy( void );
 	void					Event_GetReachableEntityPosition( idEntity *ent );
+	void					Event_MoveToPositionDirect( const idVec3 &pos );
+	void					Event_AvoidObstacles( int ignore);
+	void					Event_TriggerFX( const char *joint, const char *fx );
+	void					Event_StartEmitter( const char *name, const char *joint, const char *particle );
+	void					Event_GetEmitter( const char *name );
+	void					Event_StopEmitter( const char *name );
 };
 
 class idCombatNode : public idEntity {
