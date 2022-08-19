@@ -79,7 +79,7 @@ void idDebugGraph::Draw( const idVec4 &color, float scale ) const {
 	idVec3 vec2;
 
 	const idMat3 &axis = gameLocal.GetLocalPlayer()->viewAxis;
-	const idVec3 pos = gameLocal.GetLocalPlayer()->GetPhysics()->GetOrigin() + axis[ 1 ] * samples.Num() * 0.5f;
+	const idVec3 pos = gameLocal.GetLocalPlayer()->GetPhysics()->GetOrigin() + axis[ 1 ] * ( samples.Num() * 0.5f );	// [ ETQW ] Added Paranthesis
 
 	value1 = samples[ index ] * scale;
 	for( i = 1; i < samples.Num(); i++ ) {

@@ -511,7 +511,6 @@ void idTypeInfoTools::VerifyVariable( const char *varName, const char *varType, 
 	if ( token.Cmp( value ) != 0 ) {
 
 		// NOTE: skip several things
-
 		if ( IsRenderHandleVariable( varName, varType, scope, prefix, postfix, value ) ) {
 			return;
 		}
@@ -569,16 +568,15 @@ int idTypeInfoTools::WriteVariable_r( const void *varPtr, const char *varName, c
 		return typeSize;
 	}
 
-	// if this is a pointer
-
 #if D3_SIZEOFPTR == 4
 	const uintptr_t uninitPtr = (uintptr_t)0xcdcdcdcdUL;
 #elif D3_SIZEOFPTR == 8
 	const uintptr_t uninitPtr = (uintptr_t)0xcdcdcdcdcdcdcdcdULL;
 #else
-	#error "Unexpected pointer size"
+#error "Unexpected pointer size"
 #endif
 
+	// if this is a pointer
 	isPointer = 0;
 	for ( i = typeString.Length(); i > 0 && typeString[i - 1] == '*'; i -= 2 ) {
 		if ( varPtr == (void*)uninitPtr || ( varPtr != NULL && *((unsigned int *)varPtr) == 0xcdcdcdcd ) ) {

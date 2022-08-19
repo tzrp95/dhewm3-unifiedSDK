@@ -37,9 +37,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "gamesys/Class.h"
 
 /*
-
 Save game related helper classes.
-
 */
 
 const int INITIAL_RELEASE_BUILD_NUMBER = 1262;

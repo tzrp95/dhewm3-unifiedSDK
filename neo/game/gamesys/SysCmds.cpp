@@ -156,6 +156,24 @@ void Cmd_ReloadScript_f( const idCmdArgs &args ) {
 	// recompile the scripts
 	gameLocal.program.Startup( SCRIPT_DEFAULT );
 
+	// loads a game specific main script file
+	idStr gamedir;
+	int i;
+	for ( i = 0; i < 2; i++ ) {
+		if ( i == 0 ) {
+			gamedir = cvarSystem->GetCVarString( "fs_game_base" );
+		} else if ( i == 1 ) {
+			gamedir = cvarSystem->GetCVarString( "fs_game" );
+		}
+		if ( gamedir.Length() > 0 ) {
+			idStr scriptFile = va( "script/%s_main.script", gamedir.c_str() );
+			if ( fileSystem->ReadFile( scriptFile.c_str(), NULL) > 0 ) {
+				gameLocal.program.CompileFile( scriptFile.c_str() );
+				gameLocal.program.FinishCompilation();
+			}
+		}
+	}
+
 	// error out so that the user can rerun the scripts
 	gameLocal.Error( "Exiting map to reload scripts" );
 }
@@ -326,7 +344,7 @@ void Cmd_Give_f( const idCmdArgs &args ) {
 	}
 
 	if ( give_all || idStr::Icmp( name, "weapons" ) == 0 ) {
-		player->inventory.weapons = BIT( MAX_WEAPONS ) - 1;
+		player->inventory.weapons = 0xffffffff >> ( 32 - MAX_WEAPONS );
 		player->CacheWeapons();
 
 		if ( !give_all ) {
@@ -360,17 +378,46 @@ void Cmd_Give_f( const idCmdArgs &args ) {
 		return;
 	}
 
+	if ( idStr::Icmp( name, "invulnerability" ) == 0 ) {
+		if ( args.Argc() > 2 ) {
+			player->GivePowerUp( INVULNERABILITY, atoi( args.Argv( 2 ) ) );
+		}
+		else {
+			player->GivePowerUp( INVULNERABILITY, 30000 );
+		}
+		return;
+	}
+
+	if ( idStr::Icmp( name, "helltime" ) == 0 ) {
+		if ( args.Argc() > 2 ) {
+			player->GivePowerUp( HELLTIME, atoi( args.Argv( 2 ) ) );
+		}
+		else {
+			player->GivePowerUp( HELLTIME, 30000 );
+		}
+		return;
+	}
+
+	if ( idStr::Icmp( name, "envirosuit" ) == 0 ) {
+		if ( args.Argc() > 2 ) {
+			player->GivePowerUp( ENVIROSUIT, atoi( args.Argv( 2 ) ) );
+		}
+		else {
+			player->GivePowerUp( ENVIROSUIT, 30000 );
+		}
+		return;
+	}
 	if ( idStr::Icmp( name, "pda" ) == 0 ) {
-		player->GivePDA( args.Argv(2), NULL );
+		player->GivePDA( args.Argv( 2 ), NULL );
 		return;
 	}
 
 	if ( idStr::Icmp( name, "video" ) == 0 ) {
-		player->GiveVideo( args.Argv(2), NULL );
+		player->GiveVideo( args.Argv( 2 ), NULL );
 		return;
 	}
 
-	if ( !give_all && !player->Give( args.Argv(1), args.Argv(2) ) ) {
+	if ( !give_all && !player->Give( args.Argv( 1 ), args.Argv( 2 ) ) ) {
 		gameLocal.Printf( "unknown item\n" );
 	}
 }
@@ -581,6 +628,21 @@ static void Cmd_Say( bool team, const idCmdArgs &args ) {
 		if ( player ) {
 			name = player->GetUserInfo()->GetString( "ui_name", "player" );
 		}
+
+		// Append the player's location to team chat messages in CTF
+		if ( gameLocal.mpGame.IsGametypeFlagBased() && team && player ) {
+			idLocationEntity *locationEntity = gameLocal.LocationForPoint( player->GetEyePosition() );
+
+			if ( locationEntity ) {
+				idStr temp = "[";
+				temp += locationEntity->GetLocation();
+				temp += "] ";
+				temp += text;
+				text = temp;
+			}
+
+		}
+
 	} else {
 		name = "server";
 	}
@@ -902,7 +964,7 @@ void Cmd_TestLight_f( const idCmdArgs &args ) {
 
 	if ( args.Argc() >= 2 ) {
 		value = args.Argv( 1 );
-		filename = args.Argv(1);
+		filename = args.Argv( 1 );
 		filename.DefaultFileExtension( ".tga" );
 		dict.Set( "texture", filename );
 	}
@@ -1164,7 +1226,7 @@ static void Cmd_RemoveDebugLine_f( const idCmdArgs &args ) {
 		return;
 	}
 	value = args.Argv( 1 );
-	num = atoi(value);
+	num = atoi( value );
 	for ( i = 0; i < MAX_DEBUGLINES; i++ ) {
 		if ( debugLines[i].used ) {
 			if ( --num < 0 ) {
@@ -1273,8 +1335,8 @@ void D_DrawDebugLines( void ) {
 
 	for ( i = 0; i < MAX_DEBUGLINES; i++ ) {
 		if ( debugLines[i].used ) {
-			if ( !debugLines[i].blink || (gameLocal.time & (1<<9)) ) {
-				color = idVec4( debugLines[i].color&1, (debugLines[i].color>>1)&1, (debugLines[i].color>>2)&1, 1 );
+			if ( !debugLines[i].blink || ( gameLocal.time & ( 1<<9 ) ) ) {
+				color = idVec4( debugLines[i].color&1, ( debugLines[i].color>>1)&1, ( debugLines[i].color>>2 )&1, 1 );
 				gameRenderWorld->DebugLine( color, debugLines[i].start, debugLines[i].end );
 				//
 				if ( debugLines[i].arrow ) {
@@ -1286,8 +1348,8 @@ void D_DrawDebugLines( void ) {
 					if ( l > 3.0f ) {
 						l = 3.0f;
 					}
-					p1 = debugLines[i].end - l * forward + (l * 0.4f) * right;
-					p2 = debugLines[i].end - l * forward - (l * 0.4f) * right;
+					p1 = debugLines[i].end - l * forward + ( l * 0.4f ) * right;
+					p2 = debugLines[i].end - l * forward - ( l * 0.4f ) * right;
 					gameRenderWorld->DebugLine( color, debugLines[i].end, p1 );
 					gameRenderWorld->DebugLine( color, debugLines[i].end, p2 );
 					gameRenderWorld->DebugLine( color, p1, p2 );
@@ -1332,7 +1394,7 @@ static void Cmd_CollisionModelInfo_f( const idCmdArgs &args ) {
 	if ( !idStr::Icmp( value, "all" ) ) {
 		collisionModelManager->ModelInfo( -1 );
 	} else {
-		collisionModelManager->ModelInfo( atoi(value) );
+		collisionModelManager->ModelInfo( atoi( value ) );
 	}
 }
 
@@ -1449,7 +1511,6 @@ static void Cmd_ListAnims_f( const idCmdArgs &args ) {
 				num++;
 			}
 		}
-
 		gameLocal.Printf( "%zd memory used in %d entity animators\n", size, num );
 	}
 }
@@ -1540,7 +1601,7 @@ static void Cmd_TestBoneFx_f( const idCmdArgs &args ) {
 
 /*
 ==================
-Cmd_TestDamage_f
+Cmd_TestDeath_f
 ==================
 */
 static void Cmd_TestDeath_f( const idCmdArgs &args ) {
@@ -1560,7 +1621,6 @@ static void Cmd_TestDeath_f( const idCmdArgs &args ) {
 	if ( args.Argc() >= 2) {
 		player->SpawnGibs( dir, "damage_triggerhurt_1000" );
 	}
-
 }
 
 /*
@@ -1638,7 +1698,7 @@ static void Cmd_SaveSelected_f( const idCmdArgs &args ) {
 	else if ( s->IsType( idAFEntity_Generic::Type ) || s->IsType( idAFEntity_WithAttachedHead::Type ) ) {
 		// save the articulated figure state
 		dict.Clear();
-		static_cast<idAFEntity_Base *>(s)->SaveState( dict );
+		static_cast<idAFEntity_Base *>( s )->SaveState( dict );
 		mapEnt->epairs.Copy( dict );
 	}
 
@@ -1682,7 +1742,7 @@ static void Cmd_SaveMoveables_f( const idCmdArgs &args ) {
 	}
 
 	for( e = 0; e < MAX_GENTITIES; e++ ) {
-		m = static_cast<idMoveable *>(gameLocal.entities[ e ]);
+		m = static_cast<idMoveable *>( gameLocal.entities[ e ] );
 
 		if ( !m || !m->IsType( idMoveable::Type ) ) {
 			continue;
@@ -1711,7 +1771,7 @@ static void Cmd_SaveMoveables_f( const idCmdArgs &args ) {
 	}
 
 	for( e = 0; e < MAX_GENTITIES; e++ ) {
-		m = static_cast<idMoveable *>(gameLocal.entities[ e ]);
+		m = static_cast<idMoveable *>( gameLocal.entities[ e ] );
 
 		if ( !m || !m->IsType( idMoveable::Type ) ) {
 			continue;
@@ -1773,7 +1833,7 @@ static void Cmd_SaveRagdolls_f( const idCmdArgs &args ) {
 	}
 
 	for( e = 0; e < MAX_GENTITIES; e++ ) {
-		af = static_cast<idAFEntity_Base *>(gameLocal.entities[ e ]);
+		af = static_cast<idAFEntity_Base *>( gameLocal.entities[ e ] );
 
 		if ( !af ) {
 			continue;
@@ -1783,9 +1843,11 @@ static void Cmd_SaveRagdolls_f( const idCmdArgs &args ) {
 			continue;
 		}
 
+		/*	Uncommented so bound afs can be placed aswell
 		if ( af->IsBound() ) {
 			continue;
 		}
+		*/
 
 		if ( !af->IsAtRest() ) {
 			gameLocal.Warning( "the articulated figure for entity %s is not at rest", gameLocal.entities[ e ]->name.c_str() );
@@ -1806,8 +1868,13 @@ static void Cmd_SaveRagdolls_f( const idCmdArgs &args ) {
 					break;
 				}
 			}
-			af->name = name;
+			// Grimm : Changed "af->name = name;" to af->SetName( name );
+			af->SetName( name );
 			mapEnt->epairs.Set( "classname", af->GetEntityDefName() );
+
+			// Grimm : Added origin, todo: fix it so the origin is also saved after the entity is moved with g_dragentity --->
+			mapEnt->epairs.Set( "origin", af->spawnArgs.GetString( "origin" ) );	
+			// <---
 			mapEnt->epairs.Set( "name", af->name );
 		}
 		// save the articulated figure state
@@ -1890,7 +1957,7 @@ static void Cmd_SaveLights_f( const idCmdArgs &args ) {
 	}
 
 	for( e = 0; e < MAX_GENTITIES; e++ ) {
-		light = static_cast<idLight*>(gameLocal.entities[ e ]);
+		light = static_cast<idLight*>( gameLocal.entities[ e ] );
 
 		if ( !light || !light->IsType( idLight::Type ) ) {
 			continue;
@@ -1978,7 +2045,6 @@ static void Cmd_SaveParticles_f( const idCmdArgs &args ) {
 	mapFile->Write( mapName, ".map" );
 }
 
-
 /*
 ==================
 Cmd_DisasmScript_f
@@ -2026,21 +2092,24 @@ static void Cmd_RecordViewNotes_f( const idCmdArgs &args ) {
 	// Argv(2) = note number (person0001)
 	// Argv(3) = comments
 
-	idStr str = args.Argv(1);
+	idStr str = args.Argv( 1 );
 	str.SetFileExtension( ".txt" );
+
 	idFile *file = fileSystem->OpenFileAppend( str );
+//	idFile *file = fileSystem->OpenFileAppend( str, false, "fs_cdpath" );
+
 	if ( file ) {
 		file->WriteFloatString( "\"view\"\t( %s )\t( %s )\r\n", origin.ToString(), axis.ToString() );
-		file->WriteFloatString( "\"comments\"\t\"%s: %s\"\r\n\r\n", args.Argv(2), args.Argv(3) );
+		file->WriteFloatString( "\"comments\"\t\"%s: %s\"\r\n\r\n", args.Argv( 2 ), args.Argv( 3 ) );
 		fileSystem->CloseFile( file );
 	}
 
-	idStr viewComments = args.Argv(1);
-	viewComments.StripLeading("viewnotes/");
+	idStr viewComments = args.Argv( 1 );
+	viewComments.StripLeading( "viewnotes/" );
 	viewComments += " -- Loc: ";
 	viewComments += origin.ToString();
 	viewComments += "\n";
-	viewComments += args.Argv(3);
+	viewComments += args.Argv( 3 );
 	player->hud->SetStateString( "viewcomments", viewComments );
 	player->hud->HandleNamedEvent( "showViewComments" );
 }
@@ -2126,7 +2195,7 @@ bool FindEntityGUIs( idEntity *ent, const modelSurface_t ** surfaces,  int maxSu
 	assert( surfaces != NULL );
 	assert( ent != NULL );
 
-	memset( surfaces, 0x00, sizeof( modelSurface_t *) * maxSurfs );
+	memset( surfaces, 0x00, sizeof( modelSurface_t* ) * maxSurfs );
 	guiSurfaces = 0;
 
 	renderEnt  = ent->GetRenderEntity();
@@ -2258,7 +2327,7 @@ void Cmd_NextGUI_f( const idCmdArgs &args ) {
 	normal = geom->facePlanes[ 0 ].Normal() * renderEnt->axis;
 	center = geom->bounds.GetCenter() * modelMatrix;
 
-	origin = center + (normal * 32.0f);
+	origin = center + ( normal * 32.0f );
 	origin.z -= player->EyeHeight();
 	normal *= -1.0f;
 	angles = normal.ToAngles ();
@@ -2267,8 +2336,41 @@ void Cmd_NextGUI_f( const idCmdArgs &args ) {
 	player->noclip = true;
 	player->Teleport( origin, angles, NULL );
 }
+/*
+=================
+Cmd_SetActorState_f
+=================
+*/
+void Cmd_SetActorState_f( const idCmdArgs &args ) {
 
-static void ArgCompletion_DefFile( const idCmdArgs &args, void(*callback)( const char *s ) ) {
+	if ( args.Argc() != 3 ) {
+		common->Printf( "usage: setActorState <entity name> <state>\n" );
+		return;
+	}
+
+	idEntity* ent;
+	ent = gameLocal.FindEntity( args.Argv( 1 ) );
+	if ( !ent ) {
+		gameLocal.Printf( "entity not found\n" );
+		return;
+	}
+
+
+	if( !ent->IsType( idActor::Type ) ) {
+		gameLocal.Printf( "entity not an actor\n" );
+		return;
+	}
+
+	idActor* actor = ( idActor* )ent;
+	actor->PostEventMS( &AI_SetState, 0, args.Argv( 2 ) );
+}
+
+/*
+=================
+ArgCompletion_DefFile
+=================
+*/
+static void ArgCompletion_DefFile( const idCmdArgs &args, void( *callback )( const char *s ) ) {
 	cmdSystem->ArgCompletion_FolderExtension( args, callback, "def/", true, ".def", NULL );
 }
 
@@ -2294,6 +2396,18 @@ void Cmd_TestId_f( const idCmdArgs &args ) {
 	}
 	gameLocal.mpGame.AddChatLine( common->GetLanguageDict()->GetString( id ), "<nothing>", "<nothing>", "<nothing>" );
 }
+
+// DentonMod --->
+/*
+==================
+Cmd_UpdateCookedMathData_f
+==================
+*/
+static void Cmd_UpdateCookedMathData_f( const idCmdArgs &args ) {
+	// This would cause a cooked math data update. 
+	r_hdrColorCurveBias.SetModified();
+}
+// <---
 
 /*
 =================
@@ -2403,6 +2517,11 @@ void idGameLocal::InitConsoleCommands( void ) {
 	// localization help commands
 	cmdSystem->AddCommand( "nextGUI",				Cmd_NextGUI_f,				CMD_FL_GAME|CMD_FL_CHEAT,	"teleport the player to the next func_static with a gui" );
 	cmdSystem->AddCommand( "testid",				Cmd_TestId_f,				CMD_FL_GAME|CMD_FL_CHEAT,	"output the string for the specified id." );
+
+	cmdSystem->AddCommand( "setActorState",			Cmd_SetActorState_f,		CMD_FL_GAME|CMD_FL_CHEAT,	"Manually sets an actors script state", idGameLocal::ArgCompletion_EntityName );
+
+	// DentonMod
+	cmdSystem->AddCommand( "updateCookedMathData",	Cmd_UpdateCookedMathData_f,	CMD_FL_GAME,				"Forcefully updates cooked math data." );
 }
 
 /*

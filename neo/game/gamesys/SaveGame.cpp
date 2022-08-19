@@ -283,7 +283,7 @@ idSaveGame::WriteBounds
 */
 void idSaveGame::WriteBounds( const idBounds &bounds ) {
 	idBounds b = bounds;
-	LittleRevBytes( &b, sizeof(float), sizeof(b)/sizeof(float) );
+	LittleRevBytes( &b, sizeof( float ), sizeof( b )/sizeof( float ) );
 	file->Write( &b, sizeof( b ) );
 }
 
@@ -299,7 +299,7 @@ void idSaveGame::WriteWinding( const idWinding &w )
 	file->WriteInt( num );
 	for ( i = 0; i < num; i++ ) {
 		idVec5 v = w[i];
-		LittleRevBytes(&v, sizeof(float), sizeof(v)/sizeof(float) );
+		LittleRevBytes(&v, sizeof( float ), sizeof( v )/sizeof( float ) );
 		file->Write( &v, sizeof(v) );
 	}
 }
@@ -321,7 +321,7 @@ idSaveGame::WriteAngles
 */
 void idSaveGame::WriteAngles( const idAngles &angles ) {
 	idAngles v = angles;
-	LittleRevBytes(&v, sizeof(float), sizeof(v)/sizeof(float) );
+	LittleRevBytes(&v, sizeof( float ), sizeof( v )/sizeof( float ) );
 	file->Write( &v, sizeof( v ) );
 }
 
@@ -544,6 +544,9 @@ void idSaveGame::WriteRenderEntity( const renderEntity_t &renderEntity ) {
 	WriteBool( renderEntity.weaponDepthHack );
 
 	WriteInt( renderEntity.forceUpdate );
+
+	WriteInt( renderEntity.timeGroup );
+	WriteInt( renderEntity.xrayIndex );
 }
 
 /*
@@ -812,6 +815,7 @@ void idRestoreGame::CreateObjects( void ) {
 		type = idClass::GetClass( classname );
 		if ( !type ) {
 			Error( "idRestoreGame::CreateObjects: Unknown class '%s'", classname.c_str() );
+			return;	// BFG
 		}
 		objects[ i ] = type->CreateInstance();
 
@@ -1037,7 +1041,7 @@ idRestoreGame::ReadBounds
 */
 void idRestoreGame::ReadBounds( idBounds &bounds ) {
 	file->Read( &bounds, sizeof( bounds ) );
-	LittleRevBytes( &bounds, sizeof(float), sizeof(bounds)/sizeof(float) );
+	LittleRevBytes( &bounds, sizeof( float ), sizeof( bounds )/sizeof( float ) );
 }
 
 /*
@@ -1052,7 +1056,7 @@ void idRestoreGame::ReadWinding( idWinding &w )
 	w.SetNumPoints( num );
 	for ( i = 0; i < num; i++ ) {
 		file->Read( &w[i], sizeof(idVec5) );
-		LittleRevBytes(&w[i], sizeof(float), sizeof(idVec5)/sizeof(float) );
+		LittleRevBytes(&w[i], sizeof( float ), sizeof( idVec5 )/sizeof( float ) );
 	}
 }
 
@@ -1072,7 +1076,7 @@ idRestoreGame::ReadAngles
 */
 void idRestoreGame::ReadAngles( idAngles &angles ) {
 	file->Read( &angles, sizeof( angles ) );
-	LittleRevBytes(&angles, sizeof(float), sizeof(idAngles)/sizeof(float) );
+	LittleRevBytes(&angles, sizeof( float ), sizeof( idAngles )/sizeof( float ) );
 }
 
 /*
@@ -1318,6 +1322,9 @@ void idRestoreGame::ReadRenderEntity( renderEntity_t &renderEntity ) {
 	ReadBool( renderEntity.weaponDepthHack );
 
 	ReadInt( renderEntity.forceUpdate );
+
+	ReadInt( renderEntity.timeGroup );
+	ReadInt( renderEntity.xrayIndex );
 }
 
 /*

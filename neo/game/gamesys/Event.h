@@ -49,7 +49,7 @@ If you have questions concerning this license or the applicable additional terms
 #define	D_EVENT_ENTITY_NULL			'E'			// event can handle NULL entity pointers
 #define D_EVENT_TRACE				't'
 
-#define MAX_EVENTS					4096
+#define MAX_EVENTS					8192		// was 4096
 
 class idClass;
 class idTypeInfo;
@@ -117,6 +117,7 @@ public:
 	static void					CancelEvents( const idClass *obj, const idEventDef *evdef = NULL );
 	static void					ClearEventList( void );
 	static void					ServiceEvents( void );
+	static void					ServiceFastEvents();
 	static void					Init( void );
 	static void					Shutdown( void );
 
