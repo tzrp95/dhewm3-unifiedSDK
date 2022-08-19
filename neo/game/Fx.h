@@ -36,7 +36,7 @@ If you have questions concerning this license or the applicable additional terms
 /*
 ===============================================================================
 
-  Special effects.
+	Special effects.
 
 ===============================================================================
 */
@@ -47,7 +47,6 @@ typedef struct {
 	renderEntity_t			renderEntity;			// used to present a model to the renderer
 	int						modelDefHandle;			// handle to static renderer model
 	float					delay;
-	int						particleSystem;
 	int						start;
 	bool					soundStarted;
 	bool					shakeStarted;
@@ -67,35 +66,36 @@ public:
 	void					Save( idSaveGame *savefile ) const;
 	void					Restore( idRestoreGame *savefile );
 
-	virtual void			Think();
+	virtual void			Think( void );
 	void					Setup( const char *fx );
 	void					Run( int time );
 	void					Start( int time );
 	void					Stop( void );
 	const int				Duration( void );
-	const char *			EffectName( void );
-	const char *			Joint( void );
-	const bool				Done();
+	const char				*EffectName( void );
+	const char				*Joint( void );
+	const bool				Done( void );
 
 	virtual void			WriteToSnapshot( idBitMsgDelta &msg ) const;
 	virtual void			ReadFromSnapshot( const idBitMsgDelta &msg );
 	virtual void			ClientPredictionThink( void );
 
-	static idEntityFx *		StartFx( const char *fx, const idVec3 *useOrigin, const idMat3 *useAxis, idEntity *ent, bool bind );
+	static idEntityFx		*StartFx( const char *fx, const idVec3 *useOrigin, const idMat3 *useAxis, idEntity *ent, bool bind, const idVec3 *useDecalDir = NULL );
 
 protected:
 	void					Event_Trigger( idEntity *activator );
 	void					Event_ClearFx( void );
 
 	void					CleanUp( void );
-	void					CleanUpSingleAction( const idFXSingleAction& fxaction, idFXLocalAction& laction );
-	void					ApplyFade( const idFXSingleAction& fxaction, idFXLocalAction& laction, const int time, const int actualStart );
+	void					CleanUpSingleAction( const idFXSingleAction &fxaction, idFXLocalAction &laction );
+	void					ApplyFade( const idFXSingleAction &fxaction, idFXLocalAction &laction, const int time, const int actualStart );
 
 	int						started;
 	int						nextTriggerTime;
-	const idDeclFX *		fxEffect;				// GetFX() should be called before using fxEffect as a pointer
+	const idDeclFX			*fxEffect;				// GetFX() should be called before using fxEffect as a pointer
 	idList<idFXLocalAction>	actions;
 	idStr					systemName;
+	idVec3					decalDir;
 };
 
 class idTeleporter : public idEntityFx {

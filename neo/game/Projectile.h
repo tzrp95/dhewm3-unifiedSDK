@@ -36,12 +36,16 @@ If you have questions concerning this license or the applicable additional terms
 /*
 ===============================================================================
 
-  idProjectile
+	idProjectile
 
 ===============================================================================
 */
 
 extern const idEventDef EV_Explode;
+
+// =====================================================
+//	idProjectile
+// =====================================================
 
 class idProjectile : public idEntity {
 public :
@@ -59,7 +63,12 @@ public :
 	virtual void			Launch( const idVec3 &start, const idVec3 &dir, const idVec3 &pushVelocity, const float timeSinceFire = 0.0f, const float launchPower = 1.0f, const float dmgPower = 1.0f );
 	virtual void			FreeLightDef( void );
 
-	idEntity *				GetOwner( void ) const;
+	idEntity				*GetOwner( void ) const;
+	void					CatchProjectile( idEntity* o, const char* reflectName );
+	int						GetProjectileState( void );
+	void					Event_CreateProjectile( idEntity *owner, const idVec3 &start, const idVec3 &dir );
+	void					Event_LaunchProjectile( const idVec3 &start, const idVec3 &dir, const idVec3 &pushVelocity );
+	void					Event_SetGravity( float gravity );
 
 	virtual void			Think( void );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
@@ -74,6 +83,9 @@ public :
 		EVENT_DAMAGE_EFFECT = idEntity::EVENT_MAXEVENTS,
 		EVENT_MAXEVENTS
 	};
+
+	void					SetLaunchedFromGrabber( bool bl ) { launchedFromGrabber = bl; }
+	bool					GetLaunchedFromGrabber() { return launchedFromGrabber; }
 
 	static void				DefaultDamageEffect( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity );
 	static bool				ClientPredictionCollide( idEntity *soundEnt, const idDict &projectileDef, const trace_t &collision, const idVec3 &velocity, bool addDamageEffect );
@@ -93,6 +105,7 @@ protected:
 		bool				noSplashDamage				: 1;
 	} projectileFlags;
 
+	bool					launchedFromGrabber;
 	float					thrust;
 	int						thrust_end;
 	float					damagePower;
@@ -107,8 +120,11 @@ protected:
 	idForce_Constant		thruster;
 	idPhysics_RigidBody		physicsObj;
 
-	const idDeclParticle *	smokeFly;
+	const idDeclParticle	*smokeFly;
 	int						smokeFlyTime;
+	bool					mNoExplodeDisappear;
+	bool					mTouchTriggers;
+	int						originalTimeGroup;
 
 	typedef enum {
 		// must update these in script/doom_defs.script if changed
@@ -133,6 +149,10 @@ private:
 	void					Event_GetProjectileState( void );
 };
 
+// =====================================================
+//	idGuidedProjectile
+// =====================================================
+
 class idGuidedProjectile : public idProjectile {
 public :
 	CLASS_PROTOTYPE( idGuidedProjectile );
@@ -146,6 +166,8 @@ public :
 	void					Spawn( void );
 	virtual void			Think( void );
 	virtual void			Launch( const idVec3 &start, const idVec3 &dir, const idVec3 &pushVelocity, const float timeSinceFire = 0.0f, const float launchPower = 1.0f, const float dmgPower = 1.0f );
+	void					SetEnemy( idEntity *ent );
+	void					Event_SetEnemy(idEntity *ent);
 
 protected:
 	float					speed;
@@ -165,10 +187,16 @@ private:
 	float					burstVelocity;
 };
 
+// =====================================================
+//	idSoulCubeMissile
+// =====================================================
+
 class idSoulCubeMissile : public idGuidedProjectile {
 public:
 	CLASS_PROTOTYPE ( idSoulCubeMissile );
-	~idSoulCubeMissile();
+
+							~idSoulCubeMissile();
+
 	void					Save( idSaveGame *savefile ) const;
 	void					Restore( idRestoreGame *savefile );
 
@@ -192,7 +220,7 @@ private:
 	idVec3					orbitOrg;
 	int						orbitTime;
 	int						smokeKillTime;
-	const idDeclParticle *	smokeKill;
+	const idDeclParticle	*smokeKill;
 };
 
 struct beamTarget_t {
@@ -200,6 +228,10 @@ struct beamTarget_t {
 	renderEntity_t			renderEntity;
 	qhandle_t				modelDefHandle;
 };
+
+// =====================================================
+//	idBFGProjectile
+// =====================================================
 
 class idBFGProjectile : public idProjectile {
 public :
@@ -224,8 +256,45 @@ private:
 	idStr					damageFreq;
 
 	void					FreeBeams();
-	void					Event_RemoveBeams();
-	void					ApplyDamage();
+	void					Event_RemoveBeams();;
+};
+
+// =====================================================
+//	idHomingProjectile
+// =====================================================
+
+class idHomingProjectile : public idProjectile {
+public :
+	CLASS_PROTOTYPE( idHomingProjectile );
+
+							idHomingProjectile();
+							~idHomingProjectile();
+
+	void					Save( idSaveGame *savefile ) const;
+	void					Restore( idRestoreGame *savefile );
+
+	void					Spawn( void );
+	virtual void			Think( void );
+	virtual void			Launch( const idVec3 &start, const idVec3 &dir, const idVec3 &pushVelocity, const float timeSinceFire = 0.0f, const float launchPower = 1.0f, const float dmgPower = 1.0f );
+	void					SetEnemy( idEntity *ent );
+	void					SetSeekPos( idVec3 pos );
+	void					Event_SetEnemy(idEntity *ent);
+
+protected:
+	float					speed;
+	idEntityPtr<idEntity>	enemy;
+	idVec3					seekPos;
+
+private:
+	idAngles				rndScale;
+	idAngles				rndAng;
+	idAngles				angles;
+	float					turn_max;
+	float					clamp_dist;
+	bool					burstMode;
+	bool					unGuided;
+	float					burstDist;
+	float					burstVelocity;
 };
 
 /*
@@ -235,6 +304,10 @@ private:
 
 ===============================================================================
 */
+
+// =====================================================
+//	idDebris
+// =====================================================
 
 class idDebris : public idEntity {
 public :
@@ -261,10 +334,9 @@ public :
 private:
 	idEntityPtr<idEntity>	owner;
 	idPhysics_RigidBody		physicsObj;
-	const idDeclParticle *	smokeFly;
+	const idDeclParticle	*smokeFly;
 	int						smokeFlyTime;
-	const idSoundShader *	sndBounce;
-
+	const idSoundShader		*sndBounce;
 
 	void					Event_Explode( void );
 	void					Event_Fizzle( void );

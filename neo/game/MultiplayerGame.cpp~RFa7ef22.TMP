@@ -806,7 +806,6 @@ const char *idMultiplayerGame::GameTime() {
 
 	if ( gameState == COUNTDOWN ) {
 		ms = warmupEndTime - gameLocal.realClientTime;
-
 		// we never want to show double dashes.
 		if ( ms <= 0 ) {
 			// Try to setup time again.
@@ -3885,20 +3884,18 @@ void idMultiplayerGame::VoiceChat( const idCmdArgs &args, bool team ) {
 		common->Printf( "clientVoiceChat: only valid in multiplayer\n" );
 		return;
 	}
-
 	if ( args.Argc() != 2 ) {
 		common->Printf( "clientVoiceChat: bad args\n" );
 		return;
 	}
-
 	// throttle
 	if ( gameLocal.realClientTime < voiceChatThrottle ) {
 		return;
 	}
-
 	if ( gameLocal.GetLocalPlayer() == NULL ) {
 		return;
 	}
+
 
 	voc = args.Argv( 1 );
 	spawnArgs = gameLocal.FindEntityDefDict( "player_doommarine", false );

@@ -113,7 +113,6 @@ public:
 	idList<signal_t> signal[ NUM_SIGNALS ];
 };
 
-
 class idEntity : public idClass {
 public:
 	static const int		MAX_PVS_AREAS = 4;
@@ -136,10 +135,14 @@ public:
 	int						dormantStart;			// time that the entity was first closed off from player
 	bool					cinematic;				// during cinematics, entity will only think if cinematic is set
 
-	renderView_t *			renderView;				// for camera views from this entity
-	idEntity *				cameraTarget;			// any remoteRenderMap shaders will use this
+	renderView_t			*renderView;			// for camera views from this entity
+	idEntity				*cameraTarget;			// any remoteRenderMap shaders will use this
 
-	idList< idEntityPtr<idEntity> >	targets;		// when this entity is activated these entities entity are activated
+	// Camera field of view for remote renders
+	int						cameraFovX;
+	int						cameraFovY;
+
+	idList<idEntityPtr<idEntity>>	targets;		// when this entity is activated these entities entity are activated
 
 	int						health;					// FIXME: do all objects really need health?
 
@@ -156,7 +159,19 @@ public:
 		bool				isDormant			:1;	// if true the entity is dormant
 		bool				hasAwakened			:1;	// before a monster has been awakened the first time, use full PVS for dormant instead of area-connected
 		bool				networkSync			:1; // if true the entity is synchronized over the network
+		bool				grabbed				:1;	// if true object is currently being grabbed
 	} fl;
+
+	int						timeGroup;
+	bool					noGrab;
+
+	renderEntity_t			xrayEntity;
+	qhandle_t				xrayEntityHandle;
+	const idDeclSkin		*xraySkin;
+
+	void					DetermineTimeGroup( bool slowmo );
+	void					SetGrabbedState( bool grabbed );
+	bool					IsGrabbed();
 
 public:
 	ABSTRACT_PROTOTYPE( idEntity );
@@ -169,10 +184,11 @@ public:
 	void					Save( idSaveGame *savefile ) const;
 	void					Restore( idRestoreGame *savefile );
 
-	const char *			GetEntityDefName( void ) const;
+	const char				*GetEntityDefName( void ) const;
 	void					SetName( const char *name );
-	const char *			GetName( void ) const;
+	const char				*GetName( void ) const;
 	virtual void			UpdateChangeableSpawnArgs( const idDict *source );
+	int						GetEntityNumber() const { return entityNumber; }
 
 							// clients generate views based on all the player specific options,
 							// cameras have custom code, and everything else just uses the axis orientation
@@ -190,11 +206,11 @@ public:
 
 	// visuals
 	virtual void			Present( void );
-	virtual renderEntity_t *GetRenderEntity( void );
+	virtual renderEntity_t	*GetRenderEntity( void );
 	virtual int				GetModelDefHandle( void );
 	virtual void			SetModel( const char *modelname );
 	void					SetSkin( const idDeclSkin *skin );
-	const idDeclSkin *		GetSkin( void ) const;
+	const idDeclSkin		*GetSkin( void ) const;
 	void					SetShaderParm( int parmnum, float value );
 	virtual void			SetColor( float red, float green, float blue );
 	virtual void			SetColor( const idVec3 &color );
@@ -211,7 +227,7 @@ public:
 	void					UpdateModelTransform( void );
 	virtual void			ProjectOverlay( const idVec3 &origin, const idVec3 &dir, float size, const char *material );
 	int						GetNumPVSAreas( void );
-	const int *				GetPVSAreas( void );
+	const int				*GetPVSAreas( void );
 	void					ClearPVSAreas( void );
 	bool					PhysicsTeamInPVS( pvsHandle_t pvsHandle );
 
@@ -219,7 +235,7 @@ public:
 	virtual bool			UpdateAnimationControllers( void );
 	bool					UpdateRenderEntity( renderEntity_s *renderEntity, const renderView_t *renderView );
 	static bool				ModelCallback( renderEntity_s *renderEntity, const renderView_t *renderView );
-	virtual idAnimator *	GetAnimator( void );	// returns animator object used by this entity
+	virtual idAnimator		*GetAnimator( void );	// returns animator object used by this entity
 
 	// sound
 	virtual bool			CanPlayChatterSounds( void ) const;
@@ -229,7 +245,7 @@ public:
 	void					SetSoundVolume( float volume );
 	void					UpdateSound( void );
 	int						GetListenerId( void ) const;
-	idSoundEmitter *		GetSoundEmitter( void ) const;
+	idSoundEmitter			*GetSoundEmitter( void ) const;
 	void					FreeSoundEmitter( bool immediate );
 
 	// entity binding
@@ -245,11 +261,11 @@ public:
 	void					Unbind( void );
 	bool					IsBound( void ) const;
 	bool					IsBoundTo( idEntity *master ) const;
-	idEntity *				GetBindMaster( void ) const;
+	idEntity				*GetBindMaster( void ) const;
 	jointHandle_t			GetBindJoint( void ) const;
 	int						GetBindBody( void ) const;
-	idEntity *				GetTeamMaster( void ) const;
-	idEntity *				GetNextTeamEntity( void ) const;
+	idEntity				*GetTeamMaster( void ) const;
+	idEntity				*GetNextTeamEntity( void ) const;
 	void					ConvertLocalToWorldTransform( idVec3 &offset, idMat3 &axis );
 	idVec3					GetLocalVector( const idVec3 &vec ) const;
 	idVec3					GetLocalCoordinates( const idVec3 &vec ) const;
@@ -262,7 +278,7 @@ public:
 							// set a new physics object to be used by this entity
 	void					SetPhysics( idPhysics *phys );
 							// get the physics object used by this entity
-	idPhysics *				GetPhysics( void ) const;
+	idPhysics				*GetPhysics( void ) const;
 							// restore physics pointer for save games
 	void					RestorePhysics( idPhysics *phys );
 							// run the physics for this entity
@@ -314,7 +330,7 @@ public:
 
 	// scripting
 	virtual bool			ShouldConstructScriptObjectAtSpawn( void ) const;
-	virtual idThread *		ConstructScriptObject( void );
+	virtual idThread		*ConstructScriptObject( void );
 	virtual void			DeconstructScriptObject( void );
 	void					SetSignal( signalNum_t signalnum, idThread *thread, const function_t *function );
 	void					ClearSignal( idThread *thread, signalNum_t signalnum );
@@ -336,7 +352,7 @@ public:
 	// misc
 	virtual void			Teleport( const idVec3 &origin, const idAngles &angles, idEntity *destination );
 	bool					TouchTriggers( void ) const;
-	idCurve_Spline<idVec3> *GetSpline( void ) const;
+	idCurve_Spline<idVec3>	*GetSpline( void ) const;
 	virtual void			ShowEditingDialog( void );
 
 	enum {
@@ -368,17 +384,17 @@ protected:
 
 private:
 	idPhysics_Static		defaultPhysicsObj;					// default physics object
-	idPhysics *				physics;							// physics used for this entity
-	idEntity *				bindMaster;							// entity bound to if unequal NULL
+	idPhysics				*physics;							// physics used for this entity
+	idEntity				*bindMaster;						// entity bound to if unequal NULL
 	jointHandle_t			bindJoint;							// joint bound to if unequal INVALID_JOINT
 	int						bindBody;							// body bound to if unequal -1
-	idEntity *				teamMaster;							// master of the physics team
-	idEntity *				teamChain;							// next entity in physics team
+	idEntity				*teamMaster;						// master of the physics team
+	idEntity				*teamChain;							// next entity in physics team
 
 	int						numPVSAreas;						// number of renderer areas the entity covers
 	int						PVSAreas[MAX_PVS_AREAS];			// numbers of the renderer areas the entity covers
 
-	signalList_t *			signals;
+	signalList_t			*signals;
 
 	int						mpGUIState;							// local cache to avoid systematic SetStateInt
 
@@ -388,7 +404,7 @@ private:
 	bool					DoDormantTests( void );				// dormant == on the active list, but out of PVS
 
 	// physics
-							// initialize the default physics
+							// initialize the default physic
 	void					InitDefaultPhysics( const idVec3 &origin, const idMat3 &axis );
 							// update visual position from the physics
 	void					UpdateFromPhysics( bool moveBack );
@@ -432,7 +448,7 @@ private:
 	void					Event_StartSound( const char *soundName, int channel, int netSync );
 	void					Event_FadeSound( int channel, float to, float over );
 	void					Event_GetWorldOrigin( void );
-	void					Event_SetWorldOrigin( idVec3 const &org );
+	void					Event_SetWorldOrigin( const idVec3 &org );
 	void					Event_GetOrigin( void );
 	void					Event_SetOrigin( const idVec3 &org );
 	void					Event_GetAngles( void );
@@ -445,16 +461,18 @@ private:
 	void					Event_GetSize( void );
 	void					Event_GetMins( void );
 	void					Event_GetMaxs( void );
+	void					Event_GetCenter( void );
 	void					Event_Touches( idEntity *ent );
 	void					Event_SetGuiParm( const char *key, const char *val );
 	void					Event_SetGuiFloat( const char *key, float f );
 	void					Event_GetNextKey( const char *prefix, const char *lastMatch );
 	void					Event_SetKey( const char *key, const char *value );
-	void					Event_GetKey( const char *key );
-	void					Event_GetIntKey( const char *key );
-	void					Event_GetFloatKey( const char *key );
-	void					Event_GetVectorKey( const char *key );
-	void					Event_GetEntityKey( const char *key );
+	void					Event_GetKey( const char *key ) const;
+	void					Event_GetIntKey( const char *key ) const;
+	void					Event_GetBoolKey( const char *key ) const;
+	void					Event_GetFloatKey( const char *key ) const;
+	void					Event_GetVectorKey( const char *key ) const;
+	void					Event_GetEntityKey( const char *key ) const;
 	void					Event_RestorePosition( void );
 	void					Event_UpdateCameraTarget( void );
 	void					Event_DistanceTo( idEntity *ent );
@@ -465,6 +483,11 @@ private:
 	void					Event_HasFunction( const char *name );
 	void					Event_CallFunction( const char *name );
 	void					Event_SetNeverDormant( int enable );
+	void					Event_SetGui( int guiNum, const char *guiName );
+	void					Event_PrecacheGui( const char *guiName );
+	void					Event_GetGuiParm( int guiNum, const char *key );
+	void					Event_GetGuiParmFloat( int guiNum, const char *key );
+	void					Event_GuiNamedEvent( int guiNum, const char *event );
 };
 
 /*
@@ -480,8 +503,8 @@ typedef struct damageEffect_s {
 	idVec3					localOrigin;
 	idVec3					localNormal;
 	int						time;
-	const idDeclParticle*	type;
-	struct damageEffect_s *	next;
+	const idDeclParticle	*type;
+	struct damageEffect_s	*next;
 } damageEffect_t;
 
 class idAnimatedEntity : public idEntity {
@@ -499,7 +522,7 @@ public:
 
 	void					UpdateAnimation( void );
 
-	virtual idAnimator *	GetAnimator( void );
+	virtual idAnimator		*GetAnimator( void );
 	virtual void			SetModel( const char *modelname );
 
 	bool					GetJointWorldTransform( jointHandle_t jointHandle, int currentTime, idVec3 &offset, idMat3 &axis );
@@ -519,7 +542,7 @@ public:
 
 protected:
 	idAnimator				animator;
-	damageEffect_t *		damageEffects;
+	damageEffect_t			*damageEffects;
 
 private:
 	void					Event_GetJointHandle( const char *jointname );
@@ -530,5 +553,69 @@ private:
 	void					Event_GetJointPos( jointHandle_t jointnum );
 	void					Event_GetJointAngle( jointHandle_t jointnum );
 };
+
+class SetTimeState {
+	bool					activated;
+	bool					previousFast;
+	bool					fast;
+
+public:
+							SetTimeState();
+							SetTimeState( int timeGroup );
+							~SetTimeState();
+
+	void					PushState( int timeGroup );
+};
+
+ID_INLINE SetTimeState::SetTimeState() {
+	activated = false;
+	previousFast = false;
+}
+
+ID_INLINE SetTimeState::SetTimeState( int timeGroup ) {
+	activated = false;
+	previousFast = false;
+	PushState( timeGroup );
+}
+
+ID_INLINE void SetTimeState::PushState( int timeGroup ) {
+	// Don't mess with time in Multiplayer
+	if ( !gameLocal.isMultiplayer ) {
+
+		activated = true;
+
+		// determine previous fast setting
+		if ( gameLocal.time == gameLocal.slow.time ) {
+			previousFast = false;
+		} else {
+			previousFast = true;
+		}
+
+		// determine new fast setting
+		if ( timeGroup ) {
+			fast = true;
+		} else {
+			fast = false;
+		}
+
+		// set correct time
+		if ( fast ) {
+			gameLocal.fast.Get( gameLocal.time, gameLocal.previousTime, gameLocal.msec, gameLocal.framenum, gameLocal.realClientTime );
+		} else {
+			gameLocal.slow.Get( gameLocal.time, gameLocal.previousTime, gameLocal.msec, gameLocal.framenum, gameLocal.realClientTime );
+		}
+	}
+}
+
+ID_INLINE SetTimeState::~SetTimeState() {
+	if ( activated && !gameLocal.isMultiplayer ) {
+		// set previous correct time
+		if ( previousFast ) {
+			gameLocal.fast.Get( gameLocal.time, gameLocal.previousTime, gameLocal.msec, gameLocal.framenum, gameLocal.realClientTime );
+		} else {
+			gameLocal.slow.Get( gameLocal.time, gameLocal.previousTime, gameLocal.msec, gameLocal.framenum, gameLocal.realClientTime );
+		}
+	}
+}
 
 #endif /* !__GAME_ENTITY_H__ */
