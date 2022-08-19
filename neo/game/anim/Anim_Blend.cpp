@@ -57,6 +57,7 @@ idAnim::idAnim
 */
 idAnim::idAnim() {
 	modelDef = NULL;
+	rate = 1.0f;	// [ Quake IV ] Configurable playback rate
 	numAnims = 0;
 	memset( anims, 0, sizeof( anims ) );
 	memset( &flags, 0, sizeof( flags ) );
@@ -75,6 +76,7 @@ idAnim::idAnim( const idDeclModelDef *modelDef, const idAnim *anim ) {
 	name = anim->name;
 	realname = anim->realname;
 	flags = anim->flags;
+	rate = anim->rate;	// [ Quake IV ] Configurable playback rate	
 
 	memset( anims, 0, sizeof( anims ) );
 	for( i = 0; i < numAnims; i++ ) {
@@ -287,7 +289,7 @@ idAnim::AddFrameCommand
 Returns NULL if no error.
 =====================
 */
-const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenum, idLexer &src, const idDict *def ) {
+const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, const idList<int>& frames, idLexer &src, const idDict *def ) {		// [ Quake IV ] Added multiple frames
 	int					i;
 	int					index;
 	idStr				text;
@@ -295,14 +297,6 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 	frameCommand_t		fc;
 	idToken				token;
 	const jointInfo_t	*jointInfo;
-
-	// make sure we're within bounds
-	if ( ( framenum < 1 ) || ( framenum > anims[ 0 ]->NumFrames() ) ) {
-		return va( "Frame %d out of range", framenum );
-	}
-
-	// frame numbers are 1 based in .def files, but 0 based internally
-	framenum--;
 
 	memset( &fc, 0, sizeof( fc ) );
 
@@ -500,6 +494,9 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 			return "Unexpected end of line";
 		}
 		fc.type = FC_TRIGGER_SMOKE_PARTICLE;
+		if ( !declManager->FindType( DECL_PARTICLE, token.c_str() ) ) {
+			return va( "Particle '%s' not found", token.c_str() );	// BFG error message
+		} 
 		fc.string = new idStr( token );
 	} else if ( token == "melee" ) {
 		if( !src.ReadTokenOnLine( &token ) ) {
@@ -574,12 +571,83 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 		fc.type = FC_FIREMISSILEATTARGET;
 		fc.string = new idStr( token );
 		fc.index = jointInfo->num;
+	} else if ( token == "launch_projectile" ) {
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		if ( !declManager->FindDeclWithoutParsing( DECL_ENTITYDEF, token, false ) ) {
+			return "Unknown projectile def";
+		}
+		fc.type = FC_LAUNCH_PROJECTILE;
+		fc.string = new idStr( token );
+	} else if ( token == "trigger_fx" ) {
+
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		jointInfo = modelDef->FindJoint( token );
+		if ( !jointInfo ) {
+			return va( "Joint '%s' not found", token.c_str() );
+		}
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		if ( !declManager->FindType( DECL_FX, token, false ) ) {
+			return "Unknown FX def";
+		}
+
+		fc.type = FC_TRIGGER_FX;
+		fc.string = new idStr( token );
+		fc.index = jointInfo->num;
+
+	} else if ( token == "start_emitter" ) {
+
+		idStr str;
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		str = token + " ";
+
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		jointInfo = modelDef->FindJoint( token );
+		if ( !jointInfo ) {
+			return va( "Joint '%s' not found", token.c_str() );
+		}
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		if ( !declManager->FindType( DECL_PARTICLE, token.c_str() ) ) {
+			return va( "Particle '%s' not found", token.c_str() );	// BFG error message
+		}
+		str += token;
+		fc.type = FC_START_EMITTER;
+		fc.string = new idStr( str );
+		fc.index = jointInfo->num;
+
+	} else if ( token == "stop_emitter" ) {
+
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		fc.type = FC_STOP_EMITTER;
+		fc.string = new idStr( token );
 	} else if ( token == "footstep" ) {
 		fc.type = FC_FOOTSTEP;
 	} else if ( token == "leftfoot" ) {
 		fc.type = FC_LEFTFOOT;
 	} else if ( token == "rightfoot" ) {
 		fc.type = FC_RIGHTFOOT;
+	} else if ( token == "footstep_fx" ) {
+		if( !src.ReadTokenOnLine( &token ) ) {
+			return "Unexpected end of line";
+		}
+		if ( !modelDef->FindJoint( token ) ) {
+			return va( "Joint '%s' not found", token.c_str() );
+		}
+		fc.type = FC_FOOTSTEPFX;
+		fc.string = new idStr( token );
 	} else if ( token == "enableEyeFocus" ) {
 		fc.type = FC_ENABLE_EYE_FOCUS;
 	} else if ( token == "disableEyeFocus" ) {
@@ -635,6 +703,25 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 		}
 	}
 
+	// [ Quake IV ] Multiple frames support --->
+	for ( int ii = 0; ii < frames.Num(); ii ++ ) {
+		int framenum = frames[ii];	
+
+	/*	Q4 quote "-1 because we don't want commands on the loop frame
+	 *	If the anim doesn't loop they won't get handled.
+	 * 
+	 *	Xyzz : The "-1" was causing the out of range erorr on certain animations. 
+	 *	I removed it looks like everything works fine. I'm not sure I understood
+	 *  their reason. Did they not want non-looping animations to work with frameList ?
+	 */		
+		if ( ( framenum < 1 ) || ( framenum > anims[ 0 ]->NumFrames() /*- 1*/ ) ) {
+			gameLocal.Error( "Frame command out of range: %d on  anim '%s'. Max %d.", framenum, anims[ 0 ]->Name(), anims[ 0 ]->NumFrames() -1 );
+		}
+
+		// frame numbers are 1 based in .def files, but 0 based internally
+		framenum--;
+	// <---
+
 	// allocate space for a new command
 	frameCommands.Alloc();
 
@@ -656,6 +743,8 @@ const char *idAnim::AddFrameCommand( const idDeclModelDef *modelDef, int framenu
 
 	// increase the number of commands on this frame
 	frameLookup[ framenum ].num++;
+
+	}
 
 	// return with no error
 	return NULL;
@@ -824,6 +913,7 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 
 					target = gameLocal.FindEntity( command.string->c_str() );
 					if ( target ) {
+						SetTimeState ts( target->timeGroup );
 						target->Signal( SIG_TRIGGER );
 						target->ProcessEvent( &EV_Activate, ent );
 						target->TriggerGuis();
@@ -869,6 +959,26 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 					ent->ProcessEvent( &AI_FireMissileAtTarget, modelDef->GetJointName( command.index ), command.string->c_str() );
 					break;
 				}
+				case FC_LAUNCH_PROJECTILE: {
+					ent->ProcessEvent( &AI_LaunchProjectile, command.string->c_str() );
+					break;
+				}
+				case FC_TRIGGER_FX: {
+					ent->ProcessEvent( &EV_TriggerFX, modelDef->GetJointName( command.index ), command.string->c_str() );
+					break;
+				}
+				case FC_START_EMITTER: {
+					int index = command.string->Find( " " );
+					if( index >= 0 ) {
+						idStr name = command.string->Left( index );
+						idStr particle = command.string->Right( command.string->Length() - index - 1 );
+						ent->ProcessEvent( &AI_StartEmitter, name.c_str(), modelDef->GetJointName( command.index ), particle.c_str() );
+					}
+				}
+
+				case FC_STOP_EMITTER: {
+					ent->ProcessEvent( &AI_StopEmitter, command.string->c_str() );
+				}
 				case FC_FOOTSTEP : {
 					ent->ProcessEvent( &EV_Footstep );
 					break;
@@ -879,6 +989,10 @@ void idAnim::CallFrameCommands( idEntity *ent, int from, int to ) const {
 				}
 				case FC_RIGHTFOOT: {
 					ent->ProcessEvent( &EV_FootstepRight );
+					break;
+				}
+				case FC_FOOTSTEPFX : {
+					ent->ProcessEvent( &EV_FootstepFX, command.string->c_str() );
 					break;
 				}
 				case FC_ENABLE_EYE_FOCUS: {
@@ -1304,7 +1418,7 @@ void idAnimBlend::SetFrame( const idDeclModelDef *modelDef, int _animNum, int _f
 idAnimBlend::CycleAnim
 =====================
 */
-void idAnimBlend::CycleAnim( const idDeclModelDef *modelDef, int _animNum, int currentTime, int blendTime ) {
+void idAnimBlend::CycleAnim( const idDeclModelDef *modelDef, int _animNum, int currentTime, int blendTime, float _rate ) {	// [ Quake IV ] Added rate for configurable playback rate
 	Reset( modelDef );
 	if ( !modelDef ) {
 		return;
@@ -1337,6 +1451,12 @@ void idAnimBlend::CycleAnim( const idDeclModelDef *modelDef, int _animNum, int c
 	blendStartTime		= currentTime - 1;
 	blendDuration		= blendTime;
 	blendStartValue		= 0.0f;
+
+	// [ Quake IV ] Configurable playback rate --->
+	_rate *= _anim->GetPlaybackRate ( );
+	if ( _rate != 1.0f ) {
+		SetPlaybackRate ( currentTime, _rate );
+	} // <---
 }
 
 /*
@@ -1344,7 +1464,7 @@ void idAnimBlend::CycleAnim( const idDeclModelDef *modelDef, int _animNum, int c
 idAnimBlend::PlayAnim
 =====================
 */
-void idAnimBlend::PlayAnim( const idDeclModelDef *modelDef, int _animNum, int currentTime, int blendTime ) {
+void idAnimBlend::PlayAnim( const idDeclModelDef *modelDef, int _animNum, int currentTime, int blendTime, float _rate ) {	// [ Quake IV ] Added rate for configurable playback rate
 	Reset( modelDef );
 	if ( !modelDef ) {
 		return;
@@ -1372,6 +1492,12 @@ void idAnimBlend::PlayAnim( const idDeclModelDef *modelDef, int _animNum, int cu
 	blendStartTime		= currentTime - 1;
 	blendDuration		= blendTime;
 	blendStartValue		= 0.0f;
+
+	// [ Quake IV ] Configurable playback rate --->
+	_rate *= _anim->GetPlaybackRate ( );
+	if ( _rate != 1.0f ) {
+		SetPlaybackRate ( currentTime, _rate );
+	} // <---
 }
 
 /*
@@ -2499,38 +2625,53 @@ bool idDeclModelDef::ParseAnim( idLexer &src, int numDefaultAnims ) {
 			}
 			if ( token == "}" ) {
 				break;
-			}else if ( token == "prevent_idle_override" ) {
+			} else 
+			if ( token == "prevent_idle_override" ) {
 				flags.prevent_idle_override = true;
-			} else if ( token == "random_cycle_start" ) {
+			} else 
+			if ( token == "random_cycle_start" ) {
 				flags.random_cycle_start = true;
-			} else if ( token == "ai_no_turn" ) {
+			} else
+			// [ Quake IV ] Configurable playback rate --->
+			// Note : Don't think it's important, but if using reloadDecls while changing the rate the game crashes.
+			if ( token == "rate" ) {
+				anim->SetPlaybackRate(src.ParseFloat());
+			} else // <---
+			if ( token == "ai_no_turn" ) {
 				flags.ai_no_turn = true;
-			} else if ( token == "anim_turn" ) {
+			} else 
+			if ( token == "anim_turn" ) {
 				flags.anim_turn = true;
-			} else if ( token == "frame" ) {
-				// create a frame command
-				int			framenum;
-				const char	*err;
+			} else
+			if ( token == "frame" ) {
+				// [ Quakve IV ] Multiple frames support --->
+				idList<int>		frameList;
+				const char* err;
 
-				// make sure we don't have any line breaks while reading the frame command so the error line # will be correct
-				if ( !src.ReadTokenOnLine( &token ) ) {
-					src.Warning( "Missing frame # after 'frame'" );
-					MakeDefault();
-					return false;
-				}
-				if ( token.type == TT_PUNCTUATION && token == "-" ) {
-					src.Warning( "Invalid frame # after 'frame'" );
-					MakeDefault();
-					return false;
-				} else if ( token.type != TT_NUMBER || token.subtype == TT_FLOAT ) {
-					src.Error( "expected integer value, found '%s'", token.c_str() );
-				}
+				do { // <---
+					// make sure we don't have any line breaks while reading the frame command so the error line # will be correct
+					if ( !src.ReadTokenOnLine( &token ) ) {
+						src.Warning( "Missing frame # after 'frame'" );
+						MakeDefault();
+						return false;
+					}
 
-				// get the frame number
-				framenum = token.GetIntValue();
+					if ( token.type == TT_PUNCTUATION && token == "-" ) {
+						src.Warning( "Invalid frame # after 'frame'" );
+						MakeDefault();
+						return false;
+					} else 
+					if ( token.type != TT_NUMBER || token.subtype == TT_FLOAT ) {
+						src.Error( "expected integer value, found '%s'", token.c_str() );
+					}
 
+					// [ Quakve IV ] Multiple frames support --->
+					frameList.Append ( token.GetIntValue() );
+			
+				} while ( src.CheckTokenString ( "," ) );	// <---	
+						
 				// put the command on the specified frame of the animation
-				err = anim->AddFrameCommand( this, framenum, src, NULL );
+				err = anim->AddFrameCommand( this, frameList, src, NULL );	// [ Quake IV ] frameNum to frameList for multiple frame support
 				if ( err ) {
 					src.Warning( "%s", err );
 					MakeDefault();
@@ -2971,6 +3112,7 @@ idDeclModelDef::NumJointsOnChannel
 int idDeclModelDef::NumJointsOnChannel( int channel ) const {
 	if ( ( channel < 0 ) || ( channel >= ANIM_NumAnimChannels ) ) {
 		gameLocal.Error( "idDeclModelDef::NumJointsOnChannel : channel out of range" );
+		return 0;	// BFG
 	}
 	return channelJoints[ channel ].Num();
 }
@@ -2983,6 +3125,7 @@ idDeclModelDef::GetChannelJoints
 const int * idDeclModelDef::GetChannelJoints( int channel ) const {
 	if ( ( channel < 0 ) || ( channel >= ANIM_NumAnimChannels ) ) {
 		gameLocal.Error( "idDeclModelDef::GetChannelJoints : channel out of range" );
+		return NULL;	// BFG
 	}
 	return channelJoints[ channel ].Ptr();
 }
@@ -3018,6 +3161,7 @@ idAnimator::idAnimator() {
 	stoppedAnimatingUpdate	= false;
 	removeOriginOffset		= false;
 	forceUpdate				= false;
+	rateMultiplier			= 1;	// [ Quake IV ] Configurable playback rate
 
 	frameBounds.Clear();
 
@@ -3154,7 +3298,7 @@ void idAnimator::Restore( idRestoreGame *savefile ) {
 	}
 
 	savefile->ReadInt( numJoints );
-	joints = (idJointMat *) Mem_Alloc16( numJoints * sizeof( joints[0] ) );
+	joints = ( idJointMat * ) Mem_Alloc16( numJoints * sizeof( joints[0] ) );
 	for ( i = 0; i < numJoints; i++ ) {
 		float *data = joints[i].ToFloatPtr();
 		for ( j = 0; j < 12; j++ ) {
@@ -3449,6 +3593,7 @@ idAnimator::CurrentAnim
 idAnimBlend *idAnimator::CurrentAnim( int channelNum ) {
 	if ( ( channelNum < 0 ) || ( channelNum >= ANIM_NumAnimChannels ) ) {
 		gameLocal.Error( "idAnimator::CurrentAnim : channel out of range" );
+		return NULL;	// BFG
 	}
 
 	return &channels[ channelNum ][ 0 ];
@@ -3465,6 +3610,7 @@ void idAnimator::Clear( int channelNum, int currentTime, int cleartime ) {
 
 	if ( ( channelNum < 0 ) || ( channelNum >= ANIM_NumAnimChannels ) ) {
 		gameLocal.Error( "idAnimator::Clear : channel out of range" );
+		return;	// BFG
 	}
 
 	blend = channels[ channelNum ];
@@ -3510,7 +3656,7 @@ void idAnimator::CycleAnim( int channelNum, int animNum, int currentTime, int bl
 	}
 
 	PushAnims( channelNum, currentTime, blendTime );
-	channels[ channelNum ][ 0 ].CycleAnim( modelDef, animNum, currentTime, blendTime );
+	channels[ channelNum ][ 0 ].CycleAnim( modelDef, animNum, currentTime, blendTime, rateMultiplier );	// [ Quake IV ] Added rate multiplier for configurable rate
 	if ( entity ) {
 		entity->BecomeActive( TH_ANIMATE );
 	}
@@ -3531,7 +3677,7 @@ void idAnimator::PlayAnim( int channelNum, int animNum, int currentTime, int ble
 	}
 
 	PushAnims( channelNum, currentTime, blendTime );
-	channels[ channelNum ][ 0 ].PlayAnim( modelDef, animNum, currentTime, blendTime );
+	channels[ channelNum ][ 0 ].PlayAnim( modelDef, animNum, currentTime, blendTime, rateMultiplier ); // [ Quake IV ] Added rate multiplier for configurable rate
 	if ( entity ) {
 		entity->BecomeActive( TH_ANIMATE );
 	}
@@ -3545,6 +3691,7 @@ idAnimator::SyncAnimChannels
 void idAnimator::SyncAnimChannels( int channelNum, int fromChannelNum, int currentTime, int blendTime ) {
 	if ( ( channelNum < 0 ) || ( channelNum >= ANIM_NumAnimChannels ) || ( fromChannelNum < 0 ) || ( fromChannelNum >= ANIM_NumAnimChannels ) ) {
 		gameLocal.Error( "idAnimator::SyncToChannel : channel out of range" );
+		return;	// BFG
 	}
 
 	idAnimBlend &fromBlend = channels[ fromChannelNum ][ 0 ];
@@ -3566,6 +3713,29 @@ void idAnimator::SyncAnimChannels( int channelNum, int fromChannelNum, int curre
 		entity->BecomeActive( TH_ANIMATE );
 	}
 }
+
+// [ Quake IV ] Configurable playback rate --->
+/*
+=====================
+idAnimator::SetPlaybackRate
+=====================
+*/
+void idAnimator::SetPlaybackRate( const char* animName, float rate ) {
+	SetPlaybackRate( GetAnim( animName ), rate );
+}
+
+/*
+=====================
+idAnimator::SetPlaybackRate
+=====================
+*/
+void idAnimator::SetPlaybackRate( int animHandle, float rate ) {
+	idAnim* anim = const_cast<idAnim*>( GetAnim( animHandle ) );
+	if( anim ) {
+		anim->SetPlaybackRate( rate );
+	}
+}
+// <---
 
 /*
 =====================
@@ -4436,8 +4606,9 @@ void idAnimator::ClearForceUpdate( void ) {
 
 /*
 =====================
-idAnimator::GetJointTransform>	gamex86.dll!idAnimator::ForceUpdate()  Line 4268	C++
+idAnimator::GetJointTransform>	
 
+gamex86.dll!idAnimator::ForceUpdate()  Line 4268	C++
 =====================
 */
 bool idAnimator::GetJointTransform( jointHandle_t jointHandle, int currentTime, idVec3 &offset, idMat3 &axis ) {
@@ -4521,10 +4692,12 @@ idAnimator::GetChannelForJoint
 int idAnimator::GetChannelForJoint( jointHandle_t joint ) const {
 	if ( !modelDef ) {
 		gameLocal.Error( "idAnimator::GetChannelForJoint: NULL model" );
+		return -1;	// BFG
 	}
 
 	if ( ( joint < 0 ) || ( joint >= numJoints ) ) {
 		gameLocal.Error( "idAnimator::GetChannelForJoint: invalid joint num (%d)", joint );
+		return -1;	// BFG
 	}
 
 	return modelDef->GetJoint( joint )->channel;

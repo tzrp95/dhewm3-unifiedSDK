@@ -264,8 +264,8 @@ bool idMD5Anim::LoadAnim( const char *filename ) {
 	for( i = 0; i < numJoints; i++ ) {
 		idCQuat q;
 		parser.Parse1DMatrix( 3, baseFrame[ i ].t.ToFloatPtr() );
-		parser.Parse1DMatrix( 3, q.ToFloatPtr() );//baseFrame[ i ].q.ToFloatPtr() );
-		baseFrame[ i ].q = q.ToQuat();//.w = baseFrame[ i ].q.CalcW();
+		parser.Parse1DMatrix( 3, q.ToFloatPtr() );
+		baseFrame[ i ].q = q.ToQuat();
 	}
 	parser.ExpectTokenString( "}" );
 

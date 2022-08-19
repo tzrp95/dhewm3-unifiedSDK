@@ -38,6 +38,7 @@ If you have questions concerning this license or the applicable additional terms
 //
 // animation channels
 // these can be changed by modmakers and licensees to be whatever they need.
+//
 const int ANIM_NumAnimChannels		= 5;
 const int ANIM_MaxAnimsPerChannel	= 3;
 const int ANIM_MaxSyncedAnims		= 3;
@@ -51,7 +52,9 @@ const int ANIMCHANNEL_LEGS			= 2;
 const int ANIMCHANNEL_HEAD			= 3;
 const int ANIMCHANNEL_EYELIDS		= 4;
 
+//
 // for converting from 24 frames per second to milliseconds
+//
 ID_INLINE int FRAME2MS( int framenum ) {
 	return ( framenum * 1000 ) / 24;
 }
@@ -139,6 +142,7 @@ typedef enum {
 	FC_FOOTSTEP,
 	FC_LEFTFOOT,
 	FC_RIGHTFOOT,
+	FC_FOOTSTEPFX,
 	FC_ENABLE_EYE_FOCUS,
 	FC_DISABLE_EYE_FOCUS,
 	FC_FX,
@@ -152,7 +156,11 @@ typedef enum {
 	FC_ENABLE_LEG_IK,
 	FC_DISABLE_LEG_IK,
 	FC_RECORDDEMO,
-	FC_AVIGAME
+	FC_AVIGAME, 
+	FC_LAUNCH_PROJECTILE,
+	FC_TRIGGER_FX,
+	FC_START_EMITTER,
+	FC_STOP_EMITTER,
 } frameCommandType_t;
 
 typedef struct {
@@ -288,6 +296,7 @@ private:
 	idList<frameLookup_t>		frameLookup;
 	idList<frameCommand_t>		frameCommands;
 	animFlags_t					flags;
+	float						rate;	// [ Quake IV ] Configurable playback rate
 
 public:
 								idAnim();
@@ -306,7 +315,8 @@ public:
 	bool						GetOrigin( idVec3 &offset, int animNum, int time, int cyclecount ) const;
 	bool						GetOriginRotation( idQuat &rotation, int animNum, int currentTime, int cyclecount ) const;
 	bool						GetBounds( idBounds &bounds, int animNum, int time, int cyclecount ) const;
-	const char					*AddFrameCommand( const class idDeclModelDef *modelDef, int framenum, idLexer &src, const idDict *def );
+	const char					*AddFrameCommand( const class idDeclModelDef *modelDef, const idList<int>& frames, idLexer &src, const idDict *def );	// [ Quake IV ] Added multiple frames support
+
 	void						CallFrameCommands( idEntity *ent, int from, int to ) const;
 	bool						HasFrameCommands( void ) const;
 
@@ -314,7 +324,22 @@ public:
 	int							FindFrameForFrameCommand( frameCommandType_t framecommand, const frameCommand_t **command ) const;
 	void						SetAnimFlags( const animFlags_t &animflags );
 	const animFlags_t			&GetAnimFlags( void ) const;
+
+	// [ Quake IV ] Configurable playback rate --->
+	float						GetPlaybackRate ( void ) const;
+	void						SetPlaybackRate ( float rate );
+	// <---
 };
+
+// [ Quake IV ] Configurable playback rate --->
+ID_INLINE float idAnim::GetPlaybackRate ( void ) const {
+	return rate;
+}
+
+ID_INLINE void idAnim::SetPlaybackRate ( float _rate ) {
+	rate = _rate;
+} // <---
+
 
 /*
 ==============================================================================================
@@ -407,8 +432,10 @@ private:
 	void						Reset( const idDeclModelDef *_modelDef );
 	void						CallFrameCommands( idEntity *ent, int fromtime, int totime ) const;
 	void						SetFrame( const idDeclModelDef *modelDef, int animnum, int frame, int currenttime, int blendtime );
-	void						CycleAnim( const idDeclModelDef *modelDef, int animnum, int currenttime, int blendtime );
-	void						PlayAnim( const idDeclModelDef *modelDef, int animnum, int currenttime, int blendtime );
+	// [ Quake IV ] Added rate parameter we can speed up/slow down animations --->
+	void						CycleAnim( const idDeclModelDef *modelDef, int animnum, int currenttime, int blendtime, float rate );
+	void						PlayAnim( const idDeclModelDef *modelDef, int animnum, int currenttime, int blendtime, float rate );
+	// <---
 	bool						BlendAnim( int currentTime, int channel, int numJoints, idJointQuat *blendFrame, float &blendWeight, bool removeOrigin, bool overrideBlend, bool printInfo ) const;
 	void						BlendOrigin( int currentTime, idVec3 &blendPos, float &blendWeight, bool removeOriginOffset ) const;
 	void						BlendDelta( int fromtime, int totime, idVec3 &blendDelta, float &blendWeight ) const;
@@ -543,6 +570,12 @@ public:
 	void						ClearJoint( jointHandle_t jointnum );
 	void						ClearAllJoints( void );
 
+	// [ Quake IV ] Configurable playback rate --->
+	void						SetPlaybackRate( float multiplier );
+	void						SetPlaybackRate( const char* animName, float rate );
+	void						SetPlaybackRate( int animHandle, float rate );
+	// <---
+
 	void						InitAFPose( void );
 	void						SetAFPoseJointMod( const jointHandle_t jointNum, const AFJointModType_t mod, const idMat3 &axis, const idVec3 &origin );
 	void						FinishAFPose( int animnum, const idBounds &bounds, const int time );
@@ -592,7 +625,15 @@ private:
 	idList<idJointQuat>			AFPoseJointFrame;
 	idBounds					AFPoseBounds;
 	int							AFPoseTime;
+
+	// [ Quake IV ] Multiplier for the animation rate for all anims under this animator
+	float						rateMultiplier;
 };
+
+	// [ Quake IV ] Configurable playback rate --->
+ID_INLINE void idAnimator::SetPlaybackRate ( float _rate ) {
+	rateMultiplier = _rate;
+} // <---
 
 /*
 ==============================================================================================

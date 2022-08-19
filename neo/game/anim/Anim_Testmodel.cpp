@@ -530,16 +530,17 @@ idTestModel::TestAnim
 void idTestModel::TestAnim( const idCmdArgs &args ) {
 	idStr			name;
 	int				animNum;
+	//const idAnim	*newanim;
 
 	if ( args.Argc() < 2 ) {
 		gameLocal.Printf( "usage: testanim <animname>\n" );
 		return;
 	}
 
+	//newanim = NULL;
+
 	name = args.Argv( 1 );
 #if 0
-	const idAnim	*newanim = NULL;
-
 	if ( strstr( name, ".ma" ) || strstr( name, ".mb" ) ) {
 		const idMD5Anim	*md5anims[ ANIM_MaxSyncedAnims ];
 		idModelExport exporter;
@@ -771,6 +772,7 @@ void idTestModel::TestModel_f( const idCmdArgs &args ) {
 				name.DefaultFileExtension( ".ase" );
 			}
 
+			// Maya ascii format is supported natively now
 			if ( strstr( name, ".ma" ) || strstr( name, ".mb" ) ) {
 				idModelExport exporter;
 				exporter.ExportModel( name );
