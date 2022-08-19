@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "sys/platform.h"
+
 #include "Entity.h"
 #include "Actor.h"
 
@@ -78,7 +79,7 @@ void idPhysics_Monster::CheckGround( monsterPState_t &state ) {
 		impactInfo_t info;
 		groundEntityPtr.GetEntity()->GetImpactInfo( self, groundTrace.c.id, groundTrace.c.point, &info );
 		if ( info.invMass != 0.0f ) {
-			groundEntityPtr.GetEntity()->ApplyImpulse( self, 0, groundTrace.c.point, state.velocity  / ( info.invMass * 10.0f ) );
+			groundEntityPtr.GetEntity()->ApplyImpulse( self, 0, groundTrace.c.point, state.velocity / ( info.invMass * 10.0f ) );
 		}
 	}
 }
@@ -95,7 +96,7 @@ monsterMoveResult_t idPhysics_Monster::SlideMove( idVec3 &start, idVec3 &velocit
 
 	blockingEntity = NULL;
 	move = delta;
-	for( i = 0; i < 3; i++ ) {
+	for ( i = 0; i < 3; i++ ) {
 		gameLocal.clip.Translation( tr, start, start + move, clipModel, clipModel->GetAxis(), clipMask, self );
 
 		start = tr.endpos;
@@ -108,7 +109,7 @@ monsterMoveResult_t idPhysics_Monster::SlideMove( idVec3 &start, idVec3 &velocit
 		}
 
 		if ( tr.c.entityNum != ENTITYNUM_NONE ) {
-			assert( tr.c.entityNum < MAX_GENTITIES ); // BFG
+			assert( tr.c.entityNum < MAX_GENTITIES );
 			blockingEntity = gameLocal.entities[ tr.c.entityNum ];
 		}
 
@@ -124,8 +125,8 @@ monsterMoveResult_t idPhysics_Monster::SlideMove( idVec3 &start, idVec3 &velocit
 =====================
 idPhysics_Monster::StepMove
 
-  move start into the delta direction
-  the velocity is clipped conform any collisions
+Move start into the delta direction.
+The velocity is clipped conform any collisions.
 =====================
 */
 monsterMoveResult_t idPhysics_Monster::StepMove( idVec3 &start, idVec3 &velocity, const idVec3 &delta ) {
@@ -250,7 +251,6 @@ idPhysics_Monster::idPhysics_Monster
 ================
 */
 idPhysics_Monster::idPhysics_Monster( void ) {
-
 	memset( &current, 0, sizeof( current ) );
 	current.atRest = -1;
 	saved = current;
@@ -300,7 +300,6 @@ idPhysics_Monster::Save
 ================
 */
 void idPhysics_Monster::Save( idSaveGame *savefile ) const {
-
 	idPhysics_Monster_SavePState( savefile, current );
 	idPhysics_Monster_SavePState( savefile, saved );
 
@@ -313,7 +312,7 @@ void idPhysics_Monster::Save( idSaveGame *savefile ) const {
 	savefile->WriteBool( useVelocityMove );
 	savefile->WriteBool( noImpact );
 
-	savefile->WriteInt( (int)moveResult );
+	savefile->WriteInt( ( int )moveResult );
 	savefile->WriteObject( blockingEntity );
 }
 
@@ -323,7 +322,6 @@ idPhysics_Monster::Restore
 ================
 */
 void idPhysics_Monster::Restore( idRestoreGame *savefile ) {
-
 	idPhysics_Monster_RestorePState( savefile, current );
 	idPhysics_Monster_RestorePState( savefile, saved );
 
@@ -336,8 +334,8 @@ void idPhysics_Monster::Restore( idRestoreGame *savefile ) {
 	savefile->ReadBool( useVelocityMove );
 	savefile->ReadBool( noImpact );
 
-	savefile->ReadInt( (int &)moveResult );
-	savefile->ReadObject( reinterpret_cast<idClass *&>( blockingEntity ) );
+	savefile->ReadInt( ( int& )moveResult );
+	savefile->ReadObject( reinterpret_cast<idClass*&>( blockingEntity ) );
 }
 
 /*
@@ -452,11 +450,6 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	idMat3 masterAxis;
 	float timeStep;
 
-	// water physics --->
-	waterLevel = WATERLEVEL_NONE;
-	waterType = 0;
-	// <---
-
 	timeStep = MS2SEC( timeStepMSec );
 
 	moveResult = MM_OK;
@@ -487,9 +480,6 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 
 	clipModel->Unlink();
 
-	// check water level / type
-	idPhysics_Monster::SetWaterLevel();		// water physics 
-
 	// check if on the ground
 	idPhysics_Monster::CheckGround( current );
 
@@ -500,14 +490,15 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	} else {
 		upspeed = current.velocity.z;
 	}
+
 	if ( fly || ( !forceDeltaMove && ( !current.onGround || upspeed > 1.0f ) ) ) {
 		if ( upspeed < 0.0f ) {
 			moveResult = MM_FALLING;
-		}
-		else {
+		} else {
 			current.onGround = false;
 			moveResult = MM_OK;
 		}
+
 		delta = current.velocity * timeStep;
 		if ( delta != vec3_origin ) {
 			moveResult = idPhysics_Monster::SlideMove( current.origin, current.velocity, delta );
@@ -517,7 +508,9 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 		if ( !fly ) {
 			current.velocity += gravityVector * timeStep;
 		}
+
 	} else {
+
 		if ( useVelocityMove ) {
 			delta = current.velocity * timeStep;
 		} else {
@@ -636,7 +629,7 @@ void idPhysics_Monster::RestoreState( void ) {
 
 /*
 ================
-idPhysics_Player::SetOrigin
+idPhysics_Monster::SetOrigin
 ================
 */
 void idPhysics_Monster::SetOrigin( const idVec3 &newOrigin, int id ) {
@@ -647,8 +640,7 @@ void idPhysics_Monster::SetOrigin( const idVec3 &newOrigin, int id ) {
 	if ( masterEntity ) {
 		self->GetMasterPosition( masterOrigin, masterAxis );
 		current.origin = masterOrigin + newOrigin * masterAxis;
-	}
-	else {
+	} else {
 		current.origin = newOrigin;
 	}
 	clipModel->Link( gameLocal.clip, self, 0, newOrigin, clipModel->GetAxis() );
@@ -657,7 +649,7 @@ void idPhysics_Monster::SetOrigin( const idVec3 &newOrigin, int id ) {
 
 /*
 ================
-idPhysics_Player::SetAxis
+idPhysics_Monster::SetAxis
 ================
 */
 void idPhysics_Monster::SetAxis( const idMat3 &newAxis, int id ) {
@@ -690,8 +682,7 @@ void idPhysics_Monster::Rotate( const idRotation &rotation, int id ) {
 	if ( masterEntity ) {
 		self->GetMasterPosition( masterOrigin, masterAxis );
 		current.localOrigin = ( current.origin - masterOrigin ) * masterAxis.Transpose();
-	}
-	else {
+	} else {
 		current.localOrigin = current.origin;
 	}
 	clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() * rotation.ToMat3() );
@@ -740,7 +731,7 @@ const idVec3 &idPhysics_Monster::GetPushedLinearVelocity( const int id ) const {
 ================
 idPhysics_Monster::SetMaster
 
-  the binding is never orientated
+The binding is never orientated
 ================
 */
 void idPhysics_Monster::SetMaster( idEntity *master, const bool orientated ) {

@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "sys/platform.h"
+
 #include "gamesys/SysCvar.h"
 #include "gamesys/SaveGame.h"
 #include "physics/Physics.h"
@@ -43,7 +44,6 @@ idForce_Grab::Save
 ================
 */
 void idForce_Grab::Save( idSaveGame *savefile ) const {
-
 	savefile->WriteFloat( damping );
 	savefile->WriteVec3( goalPosition );
 	savefile->WriteFloat( distanceToGoal );
@@ -56,8 +56,7 @@ idForce_Grab::Restore
 ================
 */
 void idForce_Grab::Restore( idRestoreGame *savefile ) {
-
-	//Note: Owner needs to call set physics
+	// Note: Owner needs to call set physics
 	savefile->ReadFloat( damping );
 	savefile->ReadVec3( goalPosition );
 	savefile->ReadFloat( distanceToGoal );
@@ -129,18 +128,19 @@ idForce_Grab::Evaluate
 ================
 */
 void idForce_Grab::Evaluate( int time ) {
+	idVec3	forceDir, v, objectCenter;
+	float	forceAmt;
+	float	mass = physics->GetMass( id );
+
 	if ( !physics ) {
 		return;
 	}
-	idVec3			forceDir, v, objectCenter;
-	float			forceAmt;
-	float			mass = physics->GetMass( id );
 
 	objectCenter = physics->GetAbsBounds( id ).GetCenter();
 
 	if ( g_grabberRandomMotion.GetBool() && !gameLocal.isMultiplayer ) {
 		// Jitter the objectCenter around so it doesn't remain stationary
-		float SinOffset = idMath::Sin( ( float )( gameLocal.time )/66.f );
+		float SinOffset = idMath::Sin( ( float )( gameLocal.time )/66.0f );
 		float randScale1 = gameLocal.random.RandomFloat();
 		float randScale2 = gameLocal.random.CRandomFloat();
 		objectCenter.x += ( SinOffset * 3.5f * randScale1 ) + ( randScale2 * 1.2f );
@@ -152,31 +152,32 @@ void idForce_Grab::Evaluate( int time ) {
 	distanceToGoal = forceDir.Normalize();
 
 	float temp = distanceToGoal;
-	if ( temp > 12.f && temp < 32.f ) {
-		temp = 32.f;
+	if ( temp > 12.0f && temp < 32.0f ) {
+		temp = 32.0f;
 	}
-	forceAmt = ( 1000.f * mass ) + ( 500.f * temp * mass );
+	forceAmt = ( 1000.0f * mass ) + ( 500.0f * temp * mass );
 
-	if ( forceAmt/mass > 120000.f ) {
-		forceAmt = 120000.f * mass;
+	if ( forceAmt/mass > 120000.0f ) {
+		forceAmt = 120000.0f * mass;
 	}
 
-	// [ Icarus ] this will smooth out the object so 
-	// it doesn't vibrate when it gets close to the goal position --->
-	if ( temp < 64.f ) {
-		damping = 0.5 * temp / 64.f;
-	}
-	else {
+	// this will smooth out the object so it doesn't vibrate when it gets close to the goal position.
+	if ( temp < 64.0f ) {
+		damping = 0.5 * temp / 64.0f;
+	} else {
 		damping = g_grabberDamping.GetFloat();
-	} // <---
+	}
 
-	physics->AddForce( id, objectCenter, forceDir * forceAmt );
+	// bc: jitter fix
+	if ( distanceToGoal >= 0.5f ) {
+		physics->AddForce( id, objectCenter, forceDir * forceAmt );
+	}
 
-	if ( distanceToGoal < 196.f ) {
+	if ( distanceToGoal < 196.0f ) {
 		v = physics->GetLinearVelocity( id );
 		physics->SetLinearVelocity( v * damping, id );
 	}
-	if ( distanceToGoal < 16.f ) {
+	if ( distanceToGoal < 16.0f ) {
 		v = physics->GetAngularVelocity( id );
 		if ( v.LengthSqr() > Square( 8 ) ) {
 			physics->SetAngularVelocity( v * 0.99999f, id );

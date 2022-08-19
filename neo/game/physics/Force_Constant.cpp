@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 
 #include "sys/platform.h"
+
 #include "physics/Physics.h"
 #include "gamesys/SaveGame.h"
 
@@ -120,7 +121,6 @@ void idForce_Constant::Evaluate( int time ) {
 	}
 
 	p = physics->GetOrigin( id ) + point * physics->GetAxis( id );
-
 	physics->AddForce( id, p, force );
 }
 

@@ -43,15 +43,6 @@ If you have questions concerning this license or the applicable additional terms
 ===================================================================================
 */
 
-// water physics
-typedef enum {
-	WATERLEVEL_NONE,
-	WATERLEVEL_FEET,
-	WATERLEVEL_WAIST,
-	WATERLEVEL_HEAD
-} waterLevel_t; 
-
-
 class idPhysics_Actor : public idPhysics_Base {
 
 public:
@@ -70,13 +61,9 @@ public:
 							// align the clip model with the gravity direction
 	void					SetClipModelAxis( void );
 
-							// water physics
-	virtual waterLevel_t	GetWaterLevel( void ) const;
-	virtual int				GetWaterType( void ) const;
-
 public:	// common physics interface
 	void					SetClipModel( idClipModel *model, float density, int id = 0, bool freeOld = true );
-	idClipModel *			GetClipModel( int id = 0 ) const;
+	idClipModel				*GetClipModel( int id = 0 ) const;
 	int						GetNumClipModels( void ) const;
 
 	void					SetMass( float mass, int id = -1 );
@@ -85,16 +72,16 @@ public:	// common physics interface
 	void					SetContents( int contents, int id = -1 );
 	int						GetContents( int id = -1 ) const;
 
-	const idBounds &		GetBounds( int id = -1 ) const;
-	const idBounds &		GetAbsBounds( int id = -1 ) const;
+	const idBounds			&GetBounds( int id = -1 ) const;
+	const idBounds			&GetAbsBounds( int id = -1 ) const;
 
 	bool					IsPushable( void ) const;
 
-	const idVec3 &			GetOrigin( int id = 0 ) const;
-	const idMat3 &			GetAxis( int id = 0 ) const;
+	const idVec3			&GetOrigin( int id = 0 ) const;
+	const idMat3			&GetAxis( int id = 0 ) const;
 
 	void					SetGravity( const idVec3 &newGravity );
-	const idMat3 &			GetGravityAxis( void ) const;
+	const idMat3			&GetGravityAxis( void ) const;
 
 	void					ClipTranslation( trace_t &results, const idVec3 &translation, const idClipModel *model ) const;
 	void					ClipRotation( trace_t &results, const idRotation &rotation, const idClipModel *model ) const;
@@ -109,9 +96,7 @@ public:	// common physics interface
 	bool					EvaluateContacts( void );
 
 protected:
-	virtual void			SetWaterLevel( void );	// water physics
-
-	idClipModel *			clipModel;			// clip model used for collision detection
+	idClipModel				*clipModel;			// clip model used for collision detection
 	idMat3					clipModelAxis;		// axis of clip model aligned with gravity direction
 
 	// derived properties
@@ -119,13 +104,11 @@ protected:
 	float					invMass;
 
 	// master
-	idEntity *				masterEntity;
+	idEntity				*masterEntity;
 	float					masterYaw;
 	float					masterDeltaYaw;
 
 	// results of last evaluate
-	waterLevel_t			waterLevel;		// water physics
-	int						waterType;		// water physics
 	idEntityPtr<idEntity>	groundEntityPtr;
 };
 

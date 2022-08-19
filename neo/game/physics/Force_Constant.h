@@ -65,7 +65,7 @@ public: // common force interface
 private:
 	// force properties
 	idVec3				force;
-	idPhysics *			physics;
+	idPhysics			*physics;
 	int					id;
 	idVec3				point;
 };

@@ -51,8 +51,14 @@ typedef enum {
 	PM_NOCLIP				// flying without collision detection nor gravity
 } pmtype_t;
 
+typedef enum {
+	WATERLEVEL_NONE,
+	WATERLEVEL_FEET,
+	WATERLEVEL_WAIST,
+	WATERLEVEL_HEAD
+} waterLevel_t;
 
-#define	MAXTOUCH			32
+#define	MAXTOUCH					32
 
 typedef struct playerPState_s {
 	idVec3					origin;
@@ -63,6 +69,17 @@ typedef struct playerPState_s {
 	int						movementType;
 	int						movementFlags;
 	int						movementTime;
+
+	playerPState_s() :
+		origin( vec3_zero ),
+		velocity( vec3_zero ),
+		localOrigin( vec3_zero ),
+		pushVelocity( vec3_zero ),
+		stepUp( 0.0f ),
+		movementType( 0 ),
+		movementFlags( 0 ),
+		movementTime( 0 ) {
+	}
 } playerPState_t;
 
 class idPhysics_Player : public idPhysics_Actor {
@@ -85,17 +102,14 @@ public:
 	void					SetKnockBack( const int knockBackTime );
 	void					SetDebugLevel( bool set );
 							// feed back from last physics frame
+	waterLevel_t			GetWaterLevel( void ) const;
+	int						GetWaterType( void ) const;
 	bool					HasJumped( void ) const;
 	bool					HasSteppedUp( void ) const;
 	float					GetStepUp( void ) const;
 	bool					IsCrouching( void ) const;
 	bool					OnLadder( void ) const;
-	const idVec3 &			PlayerGetOrigin( void ) const;	// != GetOrigin
-
-	// Dashing (SpookyScary)
-	float					GetPreDashSpeed( void ) const;
-    bool					IsDashing( void ) const;
-	void					StartDash( void );;
+	const idVec3			&PlayerGetOrigin( void ) const;	// != GetOrigin
 
 public:	// common physics interface
 	bool					Evaluate( int timeStepMSec, int endTimeMSec );
@@ -118,18 +132,17 @@ public:	// common physics interface
 
 	void					SetLinearVelocity( const idVec3 &newLinearVelocity, int id = 0 );
 
-	const idVec3 &			GetLinearVelocity( int id = 0 ) const;
+	const idVec3			&GetLinearVelocity( int id = 0 ) const;
 
 	void					SetPushed( int deltaTime );
-	const idVec3 &			GetPushedLinearVelocity( const int id = 0 ) const;
+	void					SetPushedWithAbnormalVelocityHack( int deltaTime );
+	const idVec3			&GetPushedLinearVelocity( const int id = 0 ) const;
 	void					ClearPushedVelocity( void );
 
 	void					SetMaster( idEntity *master, const bool orientated = true );
 
 	void					WriteToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadFromSnapshot( const idBitMsgDelta &msg );
-
-	void					SetGravityMultiplier( float mult);  // Gravity Multiplier (Ivan)
 
 private:
 	// player physics state
@@ -158,20 +171,15 @@ private:
 	bool					walking;
 	bool					groundPlane;
 	trace_t					groundTrace;
-	const idMaterial *		groundMaterial;
+	const idMaterial		*groundMaterial;
 
 	// ladder movement
 	bool					ladder;
 	idVec3					ladderNormal;
 
-	// Double Jump (Ivan)
-	bool					doubleJumpDone;
-	int						lastJumpTime;
-	float					gravityMultiplier;
-
-	// Dashing (SpookyScary)
-	bool					dashing;
-	float					preDashSpeed;
+	// results of last evaluate
+	waterLevel_t			waterLevel;
+	int						waterType;
 
 private:
 	float					CmdScale( const usercmd_t &cmd ) const;
@@ -193,15 +201,9 @@ private:
 	void					CheckLadder( void );
 	bool					CheckJump( void );
 	bool					CheckWaterJump( void );
+	void					SetWaterLevel( void );
 	void					DropTimers( void );
 	void					MovePlayer( int msec );
-
-	// Double jump (Ivan)
-	bool					CheckDoubleJumpGroundDistance( void );
-	bool					CheckDoubleJump( void );
-
-	// Dashing (SpookyScary)
-	void					DashMove( void );
 };
 
 #endif /* !__PHYSICS_PLAYER_H__ */

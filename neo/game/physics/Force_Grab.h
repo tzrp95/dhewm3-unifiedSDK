@@ -73,7 +73,7 @@ private:
 	float				distanceToGoal;
 
 	// positioning
-	idPhysics *			physics;		// physics object
+	idPhysics			*physics;		// physics object
 	int					id;				// clip model id of physics object
 };
 
