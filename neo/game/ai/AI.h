@@ -34,6 +34,8 @@ If you have questions concerning this license or the applicable additional terms
 #include "Actor.h"
 #include "Projectile.h"
 
+class idAI;
+class idPathCorner;
 class idFuncEmitter;
 
 /*
@@ -52,12 +54,14 @@ const float	AI_FLY_DAMPENING			= 0.15f;
 const float	AI_HEARING_RANGE			= 2048.0f;
 const int	DEFAULT_FLY_OFFSET			= 68;
 
-#define ATTACK_IGNORE			0
-#define ATTACK_ON_DAMAGE		1
-#define ATTACK_ON_ACTIVATE		2
-#define ATTACK_ON_SIGHT			4
+#define ATTACK_IGNORE					0
+#define ATTACK_ON_DAMAGE				1
+#define ATTACK_ON_ACTIVATE				2
+#define ATTACK_ON_SIGHT					4
 
-// defined in script/ai_base.script.  please keep them up to date.
+//
+// move types, defined in ai_base.script
+//
 typedef enum {
 	MOVETYPE_DEAD,
 	MOVETYPE_ANIM,
@@ -67,6 +71,9 @@ typedef enum {
 	NUM_MOVETYPES
 } moveType_t;
 
+//
+// move commands
+//
 typedef enum {
 	MOVE_NONE,
 	MOVE_FACE_ENEMY,
@@ -88,6 +95,9 @@ typedef enum {
 	NUM_MOVE_COMMANDS
 } moveCommand_t;
 
+//
+// talk states
+//
 typedef enum {
 	TALK_NEVER,
 	TALK_DEAD,
@@ -114,33 +124,66 @@ typedef enum {
 
 #define	DI_NODIR	-1
 
+//
+// ballistics
+//
+typedef struct ballistics_s {
+	float					angle;		// angle in degrees in the range [-180, 180]
+	float					time;		// time it takes before the projectile arrives
+} ballistics_t;
+extern int Ballistics( const idVec3 &start, const idVec3 &end, float speed, float gravity, ballistics_t bal[2] );
+
+//
 // obstacle avoidance
+//
 typedef struct obstaclePath_s {
-	idVec3				seekPos;					// seek position avoiding obstacles
-	idEntity *			firstObstacle;				// if != NULL the first obstacle along the path
-	idVec3				startPosOutsideObstacles;	// start position outside obstacles
-	idEntity *			startPosObstacle;			// if != NULL the obstacle containing the start position
-	idVec3				seekPosOutsideObstacles;	// seek position outside obstacles
-	idEntity *			seekPosObstacle;			// if != NULL the obstacle containing the seek position
+	idVec3					seekPos;					// seek position avoiding obstacles
+	idEntity				*firstObstacle;				// if != NULL the first obstacle along the path
+	idVec3					startPosOutsideObstacles;	// start position outside obstacles
+	idEntity				*startPosObstacle;			// if != NULL the obstacle containing the start position
+	idVec3					seekPosOutsideObstacles;	// seek position outside obstacles
+	idEntity				*seekPosObstacle;			// if != NULL the obstacle containing the seek position
 } obstaclePath_t;
 
+//
 // path prediction
+//
 typedef enum {
-	SE_BLOCKED			= BIT( 0 ),
-	SE_ENTER_LEDGE_AREA	= BIT( 1 ),
-	SE_ENTER_OBSTACLE	= BIT( 2 ),
-	SE_FALL				= BIT( 3 ),
-	SE_LAND				= BIT( 4 )
+	SE_BLOCKED				= BIT( 0 ),
+	SE_ENTER_LEDGE_AREA		= BIT( 1 ),
+	SE_ENTER_OBSTACLE		= BIT( 2 ),
+	SE_FALL					= BIT( 3 ),
+	SE_LAND					= BIT( 4 )
 } stopEvent_t;
 
 typedef struct predictedPath_s {
-	idVec3				endPos;						// final position
-	idVec3				endVelocity;				// velocity at end position
-	idVec3				endNormal;					// normal of blocking surface
-	int					endTime;					// time predicted
-	int					endEvent;					// event that stopped the prediction
-	const idEntity *	blockingEntity;				// entity that blocks the movement
+	idVec3					endPos;						// final position
+	idVec3					endVelocity;				// velocity at end position
+	idVec3					endNormal;					// normal of blocking surface
+	int						endTime;					// time predicted
+	int						endEvent;					// event that stopped the prediction
+	const idEntity			*blockingEntity;			// entity that blocks the movement
 } predictedPath_t;
+
+//
+// emitters
+//
+typedef struct particleEmitter_s {
+	particleEmitter_s() {
+		particle = NULL;
+		time = 0;
+		joint = INVALID_JOINT;
+	};
+	const idDeclParticle	*particle;
+	int						time;
+	jointHandle_t			joint;
+} particleEmitter_t;
+
+typedef struct funcEmitter_s {
+	char					name[64];
+	idFuncEmitter			*particle;
+	jointHandle_t			joint;
+} funcEmitter_t;
 
 //
 // events
@@ -152,6 +195,7 @@ extern const idEventDef AI_CreateMissile;
 extern const idEventDef AI_AttackMissile;
 extern const idEventDef AI_FireMissileAtTarget;
 extern const idEventDef AI_LaunchProjectile;
+extern const idEventDef AI_TriggerFX;
 extern const idEventDef AI_StartEmitter;
 extern const idEventDef AI_StopEmitter;
 extern const idEventDef AI_AttackMelee;
@@ -163,25 +207,6 @@ extern const idEventDef AI_EnableGravity;
 extern const idEventDef AI_DisableGravity;
 extern const idEventDef AI_TriggerParticles;
 extern const idEventDef AI_RandomPath;
-
-class idPathCorner;
-
-typedef struct particleEmitter_s {
-	particleEmitter_s() {
-		particle = NULL;
-		time = 0;
-		joint = INVALID_JOINT;
-	};
-	const idDeclParticle *particle;
-	int					time;
-	jointHandle_t		joint;
-} particleEmitter_t;
-
-typedef struct funcEmitter_s {
-	char				name[64];
-	idFuncEmitter*		particle;
-	jointHandle_t		joint;
-} funcEmitter_t;
 
 class idMoveState {
 public:
@@ -213,45 +238,43 @@ public:
 
 class idAASFindCover : public idAASCallback {
 public:
-						idAASFindCover( const idVec3 &hideFromPos );
-						~idAASFindCover();
+							idAASFindCover( const idVec3 &hideFromPos );
+							~idAASFindCover();
 
-	virtual bool		TestArea( const idAAS *aas, int areaNum );
+	virtual bool			TestArea( const idAAS *aas, int areaNum );
 
 private:
-	pvsHandle_t			hidePVS;
-	int					PVSAreas[ idEntity::MAX_PVS_AREAS ];
+	pvsHandle_t				hidePVS;
+	int						PVSAreas[ idEntity::MAX_PVS_AREAS ];
 };
 
 class idAASFindAreaOutOfRange : public idAASCallback {
 public:
-						idAASFindAreaOutOfRange( const idVec3 &targetPos, float maxDist );
+							idAASFindAreaOutOfRange( const idVec3 &targetPos, float maxDist );
 
-	virtual bool		TestArea( const idAAS *aas, int areaNum );
+	virtual bool			TestArea( const idAAS *aas, int areaNum );
 
 private:
-	idVec3				targetPos;
-	float				maxDistSqr;
+	idVec3					targetPos;
+	float					maxDistSqr;
 };
-
-class idAI;
 
 class idAASFindAttackPosition : public idAASCallback {
 public:
-						idAASFindAttackPosition( const idAI *self, const idMat3 &gravityAxis, idEntity *target, const idVec3 &targetPos, const idVec3 &fireOffset );
-						~idAASFindAttackPosition();
+							idAASFindAttackPosition( const idAI *self, const idMat3 &gravityAxis, idEntity *target, const idVec3 &targetPos, const idVec3 &fireOffset );
+							~idAASFindAttackPosition();
 
-	virtual bool		TestArea( const idAAS *aas, int areaNum );
+	virtual bool			TestArea( const idAAS *aas, int areaNum );
 
 private:
-	const idAI			*self;
-	idEntity			*target;
-	idBounds			excludeBounds;
-	idVec3				targetPos;
-	idVec3				fireOffset;
-	idMat3				gravityAxis;
-	pvsHandle_t			targetPVS;
-	int					PVSAreas[ idEntity::MAX_PVS_AREAS ];
+	const idAI				*self;
+	idEntity				*target;
+	idBounds				excludeBounds;
+	idVec3					targetPos;
+	idVec3					fireOffset;
+	idMat3					gravityAxis;
+	pvsHandle_t				targetPVS;
+	int						PVSAreas[ idEntity::MAX_PVS_AREAS ];
 };
 
 class idAI : public idActor {
@@ -265,7 +288,6 @@ public:
 	void					Restore( idRestoreGame *savefile );
 
 	void					Spawn( void );
-	void					HeardSound( idEntity *ent, const char *action );
 	idActor					*GetEnemy( void ) const;
 	void					TalkTo( idActor *actor );
 	talkState_t				GetTalkState( void ) const;
@@ -292,7 +314,7 @@ public:
 
 protected:
 	// navigation
-	idAAS *					aas;
+	idAAS					*aas;
 	int						travelFlags;
 
 	idMoveState				move;
@@ -344,7 +366,7 @@ protected:
 	float					projectile_height_to_distance_ratio;	// calculates the maximum height a projectile can be thrown
 	idList<idVec3>			missileLaunchOffset;
 
-	const idDict *			projectileDef;
+	const idDict			*projectileDef;
 	mutable idClipModel		*projectileClipModel;
 	float					projectileRadius;
 	float					projectileSpeed;
@@ -419,7 +441,9 @@ protected:
 
 	idEntityPtr<idHarvestable>	harvestEnt;
 
+	//
 	// script variables
+	//
 	idScriptBool			AI_TALK;
 	idScriptBool			AI_DAMAGE;
 	idScriptBool			AI_PAIN;
@@ -439,7 +463,6 @@ protected:
 	idScriptBool			AI_DEST_UNREACHABLE;
 	idScriptBool			AI_HIT_ENEMY;
 	idScriptBool			AI_PUSHED;
-	idScriptInt				AI_WATERLEVEL;
 
 	//
 	// ai/ai.cpp
@@ -450,7 +473,6 @@ protected:
 	void					Think( void );
 	void					Activate( idEntity *activator );
 	int						ReactionTo( const idEntity *ent );
-	bool					CheckForEnemy( void );
 	void					EnemyDead( void );
 	virtual bool			CanPlayChatterSounds( void ) const;
 	void					SetChatSound( void );
@@ -480,7 +502,6 @@ protected:
 	// damage
 	virtual bool			Pain( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
 	virtual void			Killed( idEntity *inflictor, idEntity *attacker, int damage, const idVec3 &dir, int location );
-	void					FadeOut( void );	// Ivan
 
 	// navigation
 	void					KickObstacles( const idVec3 &dir, float force, idEntity *alwaysKick );
@@ -550,17 +571,16 @@ protected:
 	void					UpdateParticles( void );
 	void					TriggerParticles( const char *jointName );
 
-	idFuncEmitter			*StartEmitter( const char* name, const char* joint, const char* particle, bool orientated );
-	idFuncEmitter			*GetEmitter( const char* name );
-	void					StopEmitter( const char* name );
+	void					TriggerFX( const char *joint, const char *fx );
+	idEntity				*StartEmitter( const char *name, const char *joint, const char *particle );
+	idEntity				*GetEmitter( const char *name );
+	void					StopEmitter( const char *name );
 
-	// AI script state management	
+	// AI script state management
 	void					LinkScriptVariables( void );
 	void					UpdateAIScript( void );
 
-	//
 	// ai/ai_events.cpp
-	//
 	void					Event_Activate( idEntity *activator );
 	void					Event_Touch( idEntity *other, trace_t *trace );
 	void					Event_FindEnemy( int useFOV );
@@ -675,6 +695,7 @@ protected:
 	void					Event_ThrowAF( void );
 	void					Event_SetAngles( idAngles const &ang );
 	void					Event_GetAngles( void );
+	void					Event_GetTrajectoryToPlayer( void );
 	void					Event_RealKill( void );
 	void					Event_Kill( void );
 	void					Event_WakeOnFlashlight( int enable );
@@ -694,38 +715,39 @@ protected:
 	void					Event_GetReachableEntityPosition( idEntity *ent );
 	void					Event_MoveToPositionDirect( const idVec3 &pos );
 	void					Event_AvoidObstacles( int ignore);
-	void					Event_StartEmitter( const char* name, const char* joint, const char* particle );
-	void					Event_GetEmitter( const char* name );
-	void					Event_StopEmitter( const char* name );
+	void					Event_TriggerFX( const char *joint, const char *fx );
+	void					Event_StartEmitter( const char *name, const char *joint, const char *particle );
+	void					Event_GetEmitter( const char *name );
+	void					Event_StopEmitter( const char *name );
 };
 
 class idCombatNode : public idEntity {
 public:
 	CLASS_PROTOTYPE( idCombatNode );
 
-						idCombatNode();
+							idCombatNode();
 
-	void				Save( idSaveGame *savefile ) const;
-	void				Restore( idRestoreGame *savefile );
+	void					Save( idSaveGame *savefile ) const;
+	void					Restore( idRestoreGame *savefile );
 
-	void				Spawn( void );
-	bool				IsDisabled( void ) const;
-	bool				EntityInView( idActor *actor, const idVec3 &pos );
-	static void			DrawDebugInfo( void );
+	void					Spawn( void );
+	bool					IsDisabled( void ) const;
+	bool					EntityInView( idActor *actor, const idVec3 &pos );
+	static void				DrawDebugInfo( void );
 
 private:
-	float				min_dist;
-	float				max_dist;
-	float				cone_dist;
-	float				min_height;
-	float				max_height;
-	idVec3				cone_left;
-	idVec3				cone_right;
-	idVec3				offset;
-	bool				disabled;
+	float					min_dist;
+	float					max_dist;
+	float					cone_dist;
+	float					min_height;
+	float					max_height;
+	idVec3					cone_left;
+	idVec3					cone_right;
+	idVec3					offset;
+	bool					disabled;
 
-	void				Event_Activate( idEntity *activator );
-	void				Event_MarkUsed( void );
+	void					Event_Activate( idEntity *activator );
+	void					Event_MarkUsed( void );
 };
 
 #endif /* !__AI_H__ */
