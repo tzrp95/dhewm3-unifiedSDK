@@ -1172,6 +1172,7 @@ idVarDef *idCompiler::ParseSysObjectCall( idVarDef *funcDef ) {
 		Error( "\"%s\" cannot be called with object notation", funcDef->Name() );
 	}
 
+	assert( funcDef->value.functionPtr->eventdef != NULL ); // Added from BFG : "to remove stupid analyze warning"
 	if ( !idThread::Type.RespondsTo( *funcDef->value.functionPtr->eventdef ) ) {
 		Error( "\"%s\" is not callable as a 'sys' function", funcDef->Name() );
 	}
@@ -1213,7 +1214,7 @@ idVarDef *idCompiler::LookupDef( const char *name, const idVarDef *baseobj ) {
 
 				field = LookupDef( name, scope->scope->TypeDef()->def );
 				if ( !field ) {
-					Error( "Unknown value \"%s\"", name );
+					Error( "LookupDef():: Unknown value \"%s\"", name );
 				}
 
 				// type check
@@ -1300,7 +1301,7 @@ idVarDef *idCompiler::ParseValue( void ) {
 		if ( basetype ) {
 			Error( "%s is not a member of %s", name.c_str(), basetype->TypeDef()->Name() );
 		} else {
-			Error( "Unknown value \"%s\"", name.c_str() );
+			Error( "ParseValue():: Unknown value \"%s\"", name.c_str() ); 
 		}
 	// if namespace, then look up the variable in that namespace
 	} else if ( def->Type() == ev_namespace ) {
@@ -1310,10 +1311,15 @@ idVarDef *idCompiler::ParseValue( void ) {
 			namespaceDef = def;
 			def = gameLocal.program.GetDef( NULL, name, namespaceDef );
 			if ( !def ) {
-				Error( "Unknown value \"%s::%s\"", namespaceDef->GlobalName(), name.c_str() );
+				// Following lines were modified from BFG
+				if ( namespaceDef != NULL ) {
+					Error( "Unknown value \"%s::%s\"", namespaceDef->GlobalName(), name.c_str() );
+				} else {
+					Error( "Unknown value \"%s\"", name.c_str() );
+				}
+				break;
 			}
 		}
-		//def = LookupDef( name, basetype );
 	}
 
 	return def;
@@ -1469,14 +1475,6 @@ bool idCompiler::TypeMatches( etype_t type1, etype_t type2 ) const {
 		return true;
 	}
 
-	//if ( ( type1 == ev_entity ) && ( type2 == ev_object ) ) {
-	//	return true;
-	//}
-
-	//if ( ( type2 == ev_entity ) && ( type1 == ev_object ) ) {
-	//	return true;
-	//}
-
 	return false;
 }
 
@@ -1486,8 +1484,8 @@ idCompiler::GetExpression
 ==============
 */
 idVarDef *idCompiler::GetExpression( int priority ) {
-	const opcode_t	*op;
-	const opcode_t	*oldop;
+	const opcode_t		*op;
+	const opcode_t		*oldop;
 	idVarDef		*e;
 	idVarDef		*e2;
 	const idVarDef	*oldtype;
@@ -2452,15 +2450,18 @@ void idCompiler::ParseEventDef( idTypeDef *returnType, const char *name ) {
 	ev = idEventDef::FindEvent( name );
 	if ( !ev ) {
 		Error( "Unknown event '%s'", name );
+		return; // BFG
 	}
 
 	// set the return type
 	expectedType = GetTypeForEventArg( ev->GetReturnType() );
 	if ( !expectedType ) {
 		Error( "Invalid return type '%c' in definition of '%s' event.", ev->GetReturnType(), name );
+		return; // BFG
 	}
 	if ( returnType != expectedType ) {
 		Error( "Return type doesn't match internal return type '%s'", expectedType->Name() );
+		return; // BFG
 	}
 
 	idTypeDef newtype( ev_function, NULL, name, type_function.Size(), returnType );
@@ -2473,6 +2474,7 @@ void idCompiler::ParseEventDef( idTypeDef *returnType, const char *name ) {
 		expectedType = GetTypeForEventArg( format[ i ] );
 		if ( !expectedType || ( expectedType == &type_void ) ) {
 			Error( "Invalid parameter '%c' in definition of '%s' event.", format[ i ], name );
+			return; // BFG
 		}
 
 		argType = ParseType();

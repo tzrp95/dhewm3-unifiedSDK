@@ -177,7 +177,7 @@ void idInterpreter::Reset( void ) {
 	currentFunction = 0;
 	NextInstruction( 0 );
 
-	threadDying	=	false;
+	threadDying		= false;
 	doneProcessing	= true;
 }
 
@@ -550,6 +550,11 @@ Copys the args from the calling thread's stack
 void idInterpreter::ThreadCall( idInterpreter *source, const function_t *func, int args ) {
 	Reset();
 
+	// Added from BFG --->
+	if ( args > LOCALSTACK_SIZE ) {
+		args = LOCALSTACK_SIZE;
+	} // <---
+
 	memcpy( localstack, &source->localstack[ source->localstackUsed - args ], args );
 
 	localstackUsed = args;
@@ -620,6 +625,7 @@ void idInterpreter::EnterFunction( const function_t *func, bool clearStack ) {
 
 	if ( !func ) {
 		Error( "NULL function" );
+		return; // BFG
 	}
 
 	if ( debug ) {
@@ -732,6 +738,7 @@ void idInterpreter::CallEvent( const function_t *func, int argsize ) {
 
 	if ( !func ) {
 		Error( "NULL function" );
+		return; // BFG
 	}
 
 	assert( func->eventdef );
@@ -903,6 +910,7 @@ void idInterpreter::CallSysEvent( const function_t *func, int argsize ) {
 
 	if ( !func ) {
 		Error( "NULL function" );
+		return; // BFG
 	}
 
 	assert( func->eventdef );
@@ -1555,7 +1563,7 @@ bool idInterpreter::Execute( void ) {
 			if ( !obj ) {
 				*var_b.entityNumberPtr = 0;
 			} else if ( !obj->GetTypeDef()->Inherits( st->b->TypeDef() ) ) {
-				//Warning( "object '%s' cannot be converted to '%s'", obj->GetTypeName(), st->b->TypeDef()->Name() );
+				// Warning( "object '%s' cannot be converted to '%s'", obj->GetTypeName(), st->b->TypeDef()->Name() );
 				*var_b.entityNumberPtr = 0;
 			} else {
 				*var_b.entityNumberPtr = *var_a.entityNumberPtr;
