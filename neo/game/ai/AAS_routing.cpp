@@ -34,7 +34,7 @@ If you have questions concerning this license or the applicable additional terms
 #define CACHETYPE_AREA				1
 #define CACHETYPE_PORTAL			2
 
-#define MAX_ROUTING_CACHE_MEMORY	(2*1024*1024)
+#define MAX_ROUTING_CACHE_MEMORY	( 2*1024*1024 )
 
 #define LEDGE_TRAVELTIME_PANALTY	250
 
@@ -97,7 +97,7 @@ unsigned short idAASLocal::AreaTravelTime( int areaNum, const idVec3 &start, con
 	if ( dist < 1.0f ) {
 		return 1;
 	}
-	return (unsigned short) idMath::FtoiFast( dist );
+	return ( unsigned short ) idMath::FtoiFast( dist );
 }
 
 /*
@@ -105,7 +105,7 @@ unsigned short idAASLocal::AreaTravelTime( int areaNum, const idVec3 &start, con
 idAASLocal::CalculateAreaTravelTimes
 ============
 */
-void idAASLocal::CalculateAreaTravelTimes(void) {
+void idAASLocal::CalculateAreaTravelTimes( void ) {
 	int n, i, j, numReach, numRevReach, t, maxt;
 	byte *bytePtr;
 	idReachability *reach, *rev_reach;
@@ -114,7 +114,7 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 	numAreaTravelTimes = 0;
 	for ( n = 0; n < file->GetNumAreas(); n++ ) {
 
-		if ( !(file->GetArea( n ).flags & (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY)) ) {
+		if ( !(file->GetArea( n ).flags & ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY )) ) {
 			continue;
 		}
 
@@ -130,12 +130,12 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 		numAreaTravelTimes += numReach * numRevReach;
 	}
 
-	areaTravelTimes = (unsigned short *) Mem_Alloc( numAreaTravelTimes * sizeof( unsigned short ) );
-	bytePtr = (byte *) areaTravelTimes;
+	areaTravelTimes = ( unsigned short * ) Mem_Alloc( numAreaTravelTimes * sizeof( unsigned short ) );
+	bytePtr = ( byte * ) areaTravelTimes;
 
 	for ( n = 0; n < file->GetNumAreas(); n++ ) {
 
-		if ( !(file->GetArea( n ).flags & (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY)) ) {
+		if ( !(file->GetArea( n ).flags & ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY )) ) {
 			continue;
 		}
 
@@ -143,8 +143,8 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 		// towards all the reachabilities that lead towards this area
 		for ( maxt = i = 0, reach = file->GetArea( n ).reach; reach; reach = reach->next, i++ ) {
 			assert( i < MAX_REACH_PER_AREA );
-			if ( i >= MAX_REACH_PER_AREA ) {
-				gameLocal.Error( "i >= MAX_REACH_PER_AREA" );
+			if ( i >= MAX_REACH_PER_AREA ) {	// [ Quake IV ] better error message
+				gameLocal.Error( "i >= MAX_REACH_PER_AREA on area %d at %g,%g,%g", n, file->GetArea( n ).center.x, file->GetArea( n ).center.y, file->GetArea( n ).center.z ); 
 			}
 			reach->number = i;
 			reach->disableCount = 0;
@@ -166,7 +166,7 @@ void idAASLocal::CalculateAreaTravelTimes(void) {
 		}
 	}
 
-	assert( ( (ptrdiff_t) bytePtr - (ptrdiff_t) areaTravelTimes ) <= numAreaTravelTimes * sizeof( unsigned short ) );
+	assert(  ( ( ptrdiff_t ) bytePtr - ( ptrdiff_t ) areaTravelTimes ) <= numAreaTravelTimes * sizeof( unsigned short ) );
 }
 
 /*
@@ -193,21 +193,21 @@ void idAASLocal::SetupRoutingCache( void ) {
 	for ( i = 0; i < file->GetNumClusters(); i++ ) {
 		areaCacheIndexSize += file->GetCluster( i ).numReachableAreas;
 	}
-	areaCacheIndex = (idRoutingCache ***) Mem_ClearedAlloc( file->GetNumClusters() * sizeof( idRoutingCache ** ) +
-													areaCacheIndexSize * sizeof( idRoutingCache *) );
-	bytePtr = ((byte *)areaCacheIndex) + file->GetNumClusters() * sizeof( idRoutingCache ** );
+	areaCacheIndex = ( idRoutingCache *** ) Mem_ClearedAlloc( file->GetNumClusters() * sizeof( idRoutingCache ** ) +
+													areaCacheIndexSize * sizeof( idRoutingCache * ) );
+	bytePtr = ( ( byte * )areaCacheIndex ) + file->GetNumClusters() * sizeof( idRoutingCache ** );
 	for ( i = 0; i < file->GetNumClusters(); i++ ) {
 		areaCacheIndex[i] = ( idRoutingCache ** ) bytePtr;
 		bytePtr += file->GetCluster( i ).numReachableAreas * sizeof( idRoutingCache * );
 	}
 
 	portalCacheIndexSize = file->GetNumAreas();
-	portalCacheIndex = (idRoutingCache **) Mem_ClearedAlloc( portalCacheIndexSize * sizeof( idRoutingCache * ) );
+	portalCacheIndex = ( idRoutingCache ** ) Mem_ClearedAlloc( portalCacheIndexSize * sizeof( idRoutingCache * ) );
 
-	areaUpdate = (idRoutingUpdate *) Mem_ClearedAlloc( file->GetNumAreas() * sizeof( idRoutingUpdate ) );
-	portalUpdate = (idRoutingUpdate *) Mem_ClearedAlloc( (file->GetNumPortals()+1) * sizeof( idRoutingUpdate ) );
+	areaUpdate = ( idRoutingUpdate * ) Mem_ClearedAlloc( file->GetNumAreas() * sizeof( idRoutingUpdate ) );
+	portalUpdate = ( idRoutingUpdate * ) Mem_ClearedAlloc( ( file->GetNumPortals()+1 ) * sizeof( idRoutingUpdate ) );
 
-	goalAreaTravelTimes = (unsigned short *) Mem_ClearedAlloc( file->GetNumAreas() * sizeof( unsigned short ) );
+	goalAreaTravelTimes = ( unsigned short * ) Mem_ClearedAlloc( file->GetNumAreas() * sizeof( unsigned short ) );
 
 	cacheListStart = cacheListEnd = NULL;
 	totalCacheMemory = 0;
@@ -377,7 +377,7 @@ idAASLocal::EnableArea
 void idAASLocal::EnableArea( int areaNum ) {
 	assert( areaNum > 0 && areaNum < file->GetNumAreas() );
 
-	if ( !( file->GetArea( areaNum ).travelFlags & TFL_INVALID ) ) {
+	if ( !(file->GetArea( areaNum ).travelFlags & TFL_INVALID) ) {
 		return;
 	}
 
@@ -511,8 +511,16 @@ void idAASLocal::SetObstacleState( const idRoutingObstacle *obstacle, bool enabl
 				}
 			}
 
+			 /*	[ The Dark Mod ]
+			 * SZ: I'm commenting out the original Doom3 code below because it is broken 
+			 * It appears as if the if ( enable ) line is supposed to be if ( !enable )
+			 * Enable refers to the obstacle being on or off, not to the reachability being
+			 * enabled or disabled. If the obstacle is enabled, then the reachability is
+			 * disabled.  This appears to have thus been a semantic error by Id.
+			 */
+
 			if ( inside ) {
-				if ( enable ) {
+				if ( !enable ) {
 					rev_reach->disableCount--;
 					if ( rev_reach->disableCount <= 0 ) {
 						rev_reach->travelType &= ~TFL_INVALID;
@@ -1046,7 +1054,7 @@ bool idAASLocal::RouteToGoalArea( int areaNum, const idVec3 origin, int goalArea
 	// check if the goal area is a portal of the source area cluster
 	if ( goalClusterNum < 0 ) {
 		portal = &file->GetPortal( -goalClusterNum );
-		if ( portal->clusters[0] == clusterNum || portal->clusters[1] == clusterNum) {
+		if ( portal->clusters[0] == clusterNum || portal->clusters[1] == clusterNum ) {
 			goalClusterNum = clusterNum;
 		}
 	}
@@ -1084,7 +1092,7 @@ bool idAASLocal::RouteToGoalArea( int areaNum, const idVec3 origin, int goalArea
 	// current area inside the current cluster
 	clusterAreaNum = ClusterAreaNum( clusterNum, areaNum );
 	// if the area is not a reachable area
-	if ( clusterAreaNum >= cluster->numReachableAreas) {
+	if ( clusterAreaNum >= cluster->numReachableAreas ) {
 		return false;
 	}
 
@@ -1196,7 +1204,7 @@ bool idAASLocal::FindNearestGoal( aasGoal_t &goal, int areaNum, const idVec3 ori
 	badTravelFlags = ~travelFlags;
 	SIMDProcessor->Memset( goalAreaTravelTimes, 0, file->GetNumAreas() * sizeof( unsigned short ) );
 
-	targetDist = (target - origin).Length();
+	targetDist = ( target - origin ).Length();
 
 	// initialize first update
 	curUpdate = &areaUpdate[areaNum];
@@ -1254,19 +1262,19 @@ bool idAASLocal::FindNearestGoal( aasGoal_t &goal, int areaNum, const idVec3 ori
 			v1 = reach->end - curUpdate->start;
 			v1.Normalize();
 			v2 = target - curUpdate->start;
-			p = curUpdate->start + (v2 * v1) * v1;
+			p = curUpdate->start + ( v2 * v1 ) * v1;
 
 			// get the point on the path closest to the target
 			for ( j = 0; j < 3; j++ ) {
-				if ( (p[j] > curUpdate->start[j] + 0.1f && p[j] > reach->end[j] + 0.1f) ||
-					(p[j] < curUpdate->start[j] - 0.1f && p[j] < reach->end[j] - 0.1f) ) {
+				if ( ( p[j] > curUpdate->start[j] + 0.1f && p[j] > reach->end[j] + 0.1f ) ||
+					( p[j] < curUpdate->start[j] - 0.1f && p[j] < reach->end[j] - 0.1f ) ) {
 					break;
 				}
 			}
 			if ( j >= 3 ) {
-				dist = (target - p).Length();
+				dist = ( target - p ).Length();
 			} else {
-				dist = (target - reach->end).Length();
+				dist = ( target - reach->end ).Length();
 			}
 
 			// avoid moving closer to the target
@@ -1322,7 +1330,7 @@ bool idAASLocal::FindNearestGoal( aasGoal_t &goal, int areaNum, const idVec3 ori
 			}
 
 			// don't put goal near a ledge
-			if ( !( nextArea->flags & AREA_LEDGE ) ) {
+			if ( !(nextArea->flags & AREA_LEDGE) ) {
 
 				// add travel time through the area
 				t += AreaTravelTime( reach->toAreaNum, reach->end, nextArea->center );

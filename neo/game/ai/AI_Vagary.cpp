@@ -75,6 +75,7 @@ void idAI_Vagary::Event_ChooseObjectToThrow( const idVec3 &mins, const idVec3 &m
 
 	if ( !enemyEnt ) {
 		idThread::ReturnEntity( NULL );
+		return; // BFG
 	}
 
 	idVec3 enemyEyePos = lastVisibleEnemyPos + lastVisibleEnemyEyeOffset;

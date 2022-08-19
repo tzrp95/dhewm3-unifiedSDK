@@ -53,7 +53,7 @@ void idAASLocal::DrawCone( const idVec3 &origin, const idVec3 &dir, float radius
 	lastp = center + radius * axis[1];
 
 	for ( i = 20; i <= 360; i += 20 ) {
-		p = center + sin( DEG2RAD(i) ) * radius * axis[0] + cos( DEG2RAD(i) ) * radius * axis[1];
+		p = center + sin( DEG2RAD( i ) ) * radius * axis[0] + cos( DEG2RAD( i ) ) * radius * axis[1];
 		gameRenderWorld->DebugLine( color, lastp, p, 0 );
 		gameRenderWorld->DebugLine( color, p, top, 0 );
 		lastp = p;
@@ -116,6 +116,11 @@ void idAASLocal::DrawFace( int faceNum, bool side ) const {
 	face = &file->GetFace( faceNum );
 	numEdges = face->numEdges;
 	firstEdge = face->firstEdge;
+
+	// [ Quake IV ] --->
+	if ( !numEdges ) {	// wtf?  A face with no edges?!
+		return;
+	} // <---
 
 	mid = vec3_origin;
 	for ( i = 0; i < numEdges; i++ ) {
@@ -180,7 +185,7 @@ void idAASLocal::ShowArea( const idVec3 &origin ) const {
 	const aasArea_t *area;
 	idVec3 org;
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) );
 	org = origin;
 	PushPointIntoAreaNum( areaNum, org );
 
@@ -334,7 +339,7 @@ void idAASLocal::ShowWallEdges( const idVec3 &origin ) const {
 		return;
 	}
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) );
 	numEdges = GetWallEdges( areaNum, idBounds( origin ).Expand( 256.0f ), TFL_WALK, edges, 1024 );
 	for ( i = 0; i < numEdges; i++ ) {
 		GetEdge( edges[i], start, end );
@@ -354,7 +359,7 @@ void idAASLocal::ShowHideArea( const idVec3 &origin, int targetAreaNum ) const {
 	aasGoal_t goal;
 	aasObstacle_t obstacles[10];
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) );
 	target = AreaCenter( targetAreaNum );
 
 	// consider the target an obstacle
@@ -397,7 +402,7 @@ bool idAASLocal::PullPlayer( const idVec3 &origin, int toAreaNum ) const {
 		return false;
 	}
 
-	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( origin, DefaultSearchBounds(), ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) );
 	areaCenter = AreaCenter( toAreaNum );
 	if ( player->GetPhysics()->GetAbsBounds().Expand( 8 ).ContainsPoint( areaCenter ) ) {
 		return false;
@@ -436,7 +441,7 @@ void idAASLocal::RandomPullPlayer( const idVec3 &origin ) const {
 
 		for ( i = 0; i < file->GetNumAreas(); i++ ) {
 			n = (rnd + i) % file->GetNumAreas();
-			if ( file->GetArea( n ).flags & (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) ) {
+			if ( file->GetArea( n ).flags & ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) ) {
 				aas_pullPlayer.SetInteger( n );
 			}
 		}
@@ -455,7 +460,7 @@ void idAASLocal::ShowPushIntoArea( const idVec3 &origin ) const {
 	idVec3 target;
 
 	target = origin;
-	areaNum = PointReachableAreaNum( target, DefaultSearchBounds(), (AREA_REACHABLE_WALK|AREA_REACHABLE_FLY) );
+	areaNum = PointReachableAreaNum( target, DefaultSearchBounds(), ( AREA_REACHABLE_WALK|AREA_REACHABLE_FLY ) );
 	PushPointIntoAreaNum( areaNum, target );
 	gameRenderWorld->DebugArrow( colorGreen, origin, target, 1 );
 }
@@ -490,6 +495,10 @@ void idAASLocal::Test( const idVec3 &origin ) {
 	if ( aas_showAreas.GetBool() ) {
 		ShowArea( origin );
 	}
+	if ( aas_showAll.GetBool() ) {	// [ StormEngine 2 ] ---> 
+		for ( int i = 0; i < file->GetNumAreas(); ++i )
+		DrawArea( i );
+	}	// <---
 	if ( aas_showWallEdges.GetBool() ) {
 		ShowWallEdges( origin );
 	}
