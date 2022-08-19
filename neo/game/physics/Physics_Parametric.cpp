@@ -628,7 +628,9 @@ bool idPhysics_Parametric::Evaluate( int timeStepMSec, int endTimeMSec ) {
 
 		gameLocal.push.ClipPush( pushResults, self, pushFlags, oldOrigin, oldAxis, current.origin, current.axis );
 		if ( pushResults.fraction < 1.0f ) {
-			clipModel->Link( gameLocal.clip, self, 0, oldOrigin, oldAxis );
+			if ( clipModel ) {	// BFG
+				clipModel->Link(gameLocal.clip, self, 0, oldOrigin, oldAxis);
+			}
 			current.localOrigin = oldLocalOrigin;
 			current.origin = oldOrigin;
 			current.localAngles = oldLocalAngles;
@@ -649,6 +651,17 @@ bool idPhysics_Parametric::Evaluate( int timeStepMSec, int endTimeMSec ) {
 
 	if ( TestIfAtRest() ) {
 		Rest();
+	}
+
+	/*
+	* [ Prey ] Fixes issue of bound movers saying they are at
+	* rest when bound to something rotating them.  Caused probs with 
+	* movables not moving down, as they think what they are resting on is
+	* at rest.
+	*/
+	if ( ( current.atRest >= 0 ) && 
+		 ( current.origin != oldOrigin || current.axis != oldAxis ) ) {
+		Activate(); 
 	}
 
 	return ( current.origin != oldOrigin || current.axis != oldAxis );

@@ -34,6 +34,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "Entity.h"
 #include "Player.h"
 #include "WorldSpawn.h"
+#include "physics/Physics_Liquid.h"
 
 #include "physics/Physics_AF.h"
 
@@ -57,6 +58,14 @@ const float SUSPEND_LINEAR_VELOCITY			= 10.0f;
 const float SUSPEND_ANGULAR_VELOCITY		= 15.0f;
 const float SUSPEND_LINEAR_ACCELERATION		= 20.0f;
 const float SUSPEND_ANGULAR_ACCELERATION	= 30.0f;
+
+// water physics --->
+const float WATER_FRICTION					= 0.0f;		// we need AF friction to be a little bigger than RB water friction, we add this value
+const float DEFAULT_LIQUID_SCALAR			= -0.28f;	
+const float DEFAULT_LIQUID_DENSITY			= 0.005f;
+const float LIQUID_MASS_MUL					= 3.0f;		// I'm not sure how to explain this, without it body bob way too quickly
+// <---
+
 const idVec6 vec6_lcp_epsilon				= idVec6( LCP_EPSILON, LCP_EPSILON, LCP_EPSILON,
 													 LCP_EPSILON, LCP_EPSILON, LCP_EPSILON );
 
@@ -999,7 +1008,7 @@ idAFConstraint_UniversalJoint::SetShafts
 */
 void idAFConstraint_UniversalJoint::SetShafts( const idVec3 &cardanShaft1, const idVec3 &cardanShaft2 ) {
 	idVec3 cardanAxis;
-	float l id_attribute((unused));
+	float l id_attribute( ( unused ) );
 
 	shaft1 = cardanShaft1;
 	l = shaft1.Normalize();
@@ -1467,18 +1476,17 @@ bool idAFConstraint_UniversalJointFriction::Add( idPhysics_AF *phys, float invTi
 	s1.NormalVectors( dir1, dir2 );
 
 	J1.SetSize( 2, 6 );
-	J1.SubVec6(0).SubVec3(0).Zero();
-	J1.SubVec6(0).SubVec3(1) = dir1;
-	J1.SubVec6(1).SubVec3(0).Zero();
-	J1.SubVec6(1).SubVec3(1) = dir2;
+	J1.SubVec6(0).SubVec3( 0 ).Zero();
+	J1.SubVec6(0).SubVec3( 1 ) = dir1;
+	J1.SubVec6(1).SubVec3( 0 ).Zero();
+	J1.SubVec6(1).SubVec3( 1 ) = dir2;
 
 	if ( body2 ) {
-
 		J2.SetSize( 2, 6 );
-		J2.SubVec6(0).SubVec3(0).Zero();
-		J2.SubVec6(0).SubVec3(1) = -dir1;
-		J2.SubVec6(1).SubVec3(0).Zero();
-		J2.SubVec6(1).SubVec3(1) = -dir2;
+		J2.SubVec6(0).SubVec3( 0 ).Zero();
+		J2.SubVec6(0).SubVec3( 1 ) = -dir1;
+		J2.SubVec6(1).SubVec3( 0 ).Zero();
+		J2.SubVec6(1).SubVec3( 1 ) = -dir2;
 	}
 
 	physics->AddFrameConstraint( this );
@@ -1791,13 +1799,13 @@ void idAFConstraint_Hinge::Evaluate( float invTimeStep ) {
 
 	master = body2 ? body2 : physics->GetMasterBody();
 
-	x1 = axis1 * body1->GetWorldAxis();		// axis in body1 space
+	x1 = axis1 * body1->GetWorldAxis();				// axis in body1 space
 	x1.OrthogonalBasis( vecX, vecY );				// basis for axis in body1 space
 
-	a1 = anchor1 * body1->GetWorldAxis();	// anchor in body1 space
+	a1 = anchor1 * body1->GetWorldAxis();			// anchor in body1 space
 
 	if ( master ) {
-		a2 = anchor2 * master->GetWorldAxis();	// anchor in master space
+		a2 = anchor2 * master->GetWorldAxis();		// anchor in master space
 		x2 = axis2 * master->GetWorldAxis();
 		c1.SubVec3(0) = -( invTimeStep * ERROR_REDUCTION ) * ( a2 + master->GetWorldOrigin() - ( a1 + body1->GetWorldOrigin() ) );
 	}
@@ -2159,9 +2167,9 @@ idAFConstraint_HingeSteering::Save
 ================
 */
 void idAFConstraint_HingeSteering::Save( idSaveGame *saveFile ) const {
-	saveFile->WriteFloat(steerAngle);
-	saveFile->WriteFloat(steerSpeed);
-	saveFile->WriteFloat(epsilon);
+	saveFile->WriteFloat( steerAngle );
+	saveFile->WriteFloat( steerSpeed );
+	saveFile->WriteFloat( epsilon );
 }
 
 /*
@@ -2170,9 +2178,9 @@ idAFConstraint_HingeSteering::Restore
 ================
 */
 void idAFConstraint_HingeSteering::Restore( idRestoreGame *saveFile ) {
-	saveFile->ReadFloat(steerAngle);
-	saveFile->ReadFloat(steerSpeed);
-	saveFile->ReadFloat(epsilon);
+	saveFile->ReadFloat( steerAngle );
+	saveFile->ReadFloat( steerSpeed );
+	saveFile->ReadFloat( epsilon );
 }
 
 /*
@@ -2221,15 +2229,15 @@ bool idAFConstraint_HingeSteering::Add( idPhysics_AF *phys, float invTimeStep ) 
 	a1 *= body1->GetWorldAxis();
 
 	J1.SetSize( 1, 6 );
-	J1.SubVec6(0).SubVec3(0).Zero();
-	J1.SubVec6(0).SubVec3(1) = a1;
+	J1.SubVec6( 0 ).SubVec3(0).Zero();
+	J1.SubVec6( 0 ).SubVec3(1) = a1;
 
 	if ( body2 ) {
 		a2 *= body2->GetWorldAxis();
 
 		J2.SetSize( 1, 6 );
-		J2.SubVec6(0).SubVec3(0).Zero();
-		J2.SubVec6(0).SubVec3(1) = -a2;
+		J2.SubVec6(0).SubVec3( 0 ).Zero();
+		J2.SubVec6(0).SubVec3( 1 ) = -a2;
 	}
 
 	speed = steerAngle - angle;
@@ -3033,7 +3041,8 @@ void idAFConstraint_Contact::Setup( idAFBody *b1, idAFBody *b2, contactInfo_t &c
 
 	if ( body1->GetBouncyness() > 0.0f && -vel > minBounceVelocity ) {
 		c1[0] = body1->GetBouncyness() * vel;
-	} else {
+	}
+	else {
 		c1[0] = 0.0f;
 	}
 
@@ -3062,6 +3071,11 @@ void idAFConstraint_Contact::ApplyFriction( float invTimeStep ) {
 	idVec3 r, velocity, normal, dir1, dir2;
 	float friction, magnitude, forceNumerator, forceDenominator;
 	idVecX impulse, dv;
+
+	// BFG --->
+	if ( !body1 ) {
+		return;
+	} //<---
 
 	friction = body1->GetContactFriction();
 	if ( body2 && body2->GetContactFriction() < friction ) {
@@ -4015,7 +4029,7 @@ void idAFConstraint_Suspension::Evaluate( float invTimeStep ) {
 		velocity += J2.SubVec6(0).SubVec3(0) * body2->GetLinearVelocity() + J2.SubVec6(0).SubVec3(1) * body2->GetAngularVelocity();
 	}
 
-	c1[0] = -compression;		// + 0.5f * -velocity;
+	c1[0] = -compression;
 
 	e[0] = 1e-4f;
 	lo[0] = 0.0f;
@@ -4165,7 +4179,6 @@ idAFBody::idAFBody( const idStr &name, idClipModel *clipModel, float density ) {
 	current->worldOrigin = clipModel->GetOrigin();
 	current->worldAxis = clipModel->GetAxis();
 	*next = *current;
-
 }
 
 /*
@@ -4205,6 +4218,13 @@ void idAFBody::Init( void ) {
 	centerOfMass				= vec3_zero;
 	inertiaTensor				= mat3_identity;
 	inverseInertiaTensor		= mat3_identity;
+
+	// water physics --->
+	this->volume				= 1.0f;
+	this->liquidMass			= 1.0f;
+	this->invLiquidMass			= 1.0f;
+	this->waterLevel			= 0.0f;
+	// <---
 
 	current						= &state[0];
 	next						= &state[1];
@@ -4317,6 +4337,11 @@ void idAFBody::SetDensity( float density, const idMat3 &inertiaScale ) {
 	else {
 		inverseInertiaTensor = inertiaTensor.Inverse();
 	}
+
+	// water physics
+	this->volume = mass / density;
+	this->liquidMass = this->mass;
+	this->invLiquidMass = this->invMass;
 }
 
 /*
@@ -4425,6 +4450,12 @@ void idAFBody::Save( idSaveGame *saveFile ) {
 	saveFile->WriteFloat( contactMotorVelocity );
 	saveFile->WriteFloat( contactMotorForce );
 
+	// water physics --->
+	saveFile->WriteFloat( volume );
+	saveFile->WriteFloat( liquidMass );
+	saveFile->WriteFloat( invLiquidMass );
+	// <---
+
 	saveFile->WriteFloat( mass );
 	saveFile->WriteFloat( invMass );
 	saveFile->WriteVec3( centerOfMass );
@@ -4455,6 +4486,12 @@ void idAFBody::Restore( idRestoreGame *saveFile ) {
 	saveFile->ReadFloat( contactMotorVelocity );
 	saveFile->ReadFloat( contactMotorForce );
 
+	// water physics --->
+	saveFile->ReadFloat( volume );
+	saveFile->ReadFloat( liquidMass );
+	saveFile->ReadFloat( invLiquidMass );
+	// <---
+
 	saveFile->ReadFloat( mass );
 	saveFile->ReadFloat( invMass );
 	saveFile->ReadVec3( centerOfMass );
@@ -4469,7 +4506,88 @@ void idAFBody::Restore( idRestoreGame *saveFile ) {
 	saveFile->ReadMat3( atRestAxis );
 }
 
+// Water Physics --->
+/*
+================
+idAFBody::GetWaterLevel
+	returns the percent of the body in water (set by SetWaterLevel)
+================
+*/
+float idAFBody::GetWaterLevel() const {
+	return this->waterLevel;
+}
 
+/*
+================
+idAFBody::SetWaterLevel
+	returns the percent of the body in water
+	0.0f if out of water 
+	
+	Note we use the liquid's gravity normal for 
+	floating because the idPhysics_AF gravity normal
+	is really hard to get a hold of!
+================
+*/
+float idAFBody::SetWaterLevel( idPhysics_Liquid *l, const idVec3 &gravityNormal, bool fixedDensityBuoyancy ) {
+	if( l == NULL ) {
+		this->waterLevel = 0.0f;
+		return 0.0f;
+	}
+
+	if( !fixedDensityBuoyancy ) {
+		const idBounds	&bounds = this->clipModel->GetBounds();
+		idVec3 depth,point;
+		float height, d;
+
+		//
+		// check if physics object is under water
+		// and return the percentage of the object under water
+		//
+		point = this->GetWorldOrigin();
+
+		depth = l->GetDepth(point);
+		height = abs( bounds[0].z - bounds[1].z ) * 0.5f;
+		d = depth.z;
+
+		if( d < 0 )
+			this->waterLevel = 0.0f;
+		else if( d > height )
+			this->waterLevel = 1.0f;
+		else
+			this->waterLevel = d / height;
+	}
+	else {
+		idVec3 depth,bottom(this->current->worldOrigin);
+		idBounds bounds = this->clipModel->GetBounds();
+		float height,d;
+
+		// offset and rotate the bounding box
+		bounds += -centerOfMass;
+		bounds *= this->current->worldAxis.Transpose();
+
+		// gets the position of the object relative to the surface of the water
+		height = abs(bounds[1] * gravityNormal * 2);
+
+		// calculates the depth of the bottom of the object
+		bottom += (height * 0.5f) * gravityNormal;
+		depth = l->GetDepth(bottom);
+		d = abs(depth * gravityNormal);
+
+		if( d > height ) {
+			// the body is totally submerged
+			this->waterLevel = 1.0f;
+		}
+		else if( depth.x == -1 && depth.y == -1 && depth.z == -1 ) {
+			this->waterLevel = 0.0f;
+		}
+		else {
+			// the body is partly submerged
+			this->waterLevel = d / height;
+		}
+	}
+	return this->waterLevel;
+}
+// <---
 
 //===============================================================
 //                                                        M
@@ -4497,12 +4615,10 @@ void idAFTree::Factor( void ) const {
 		body = sortedBodies[i];
 
 		if ( body->children.Num() ) {
-
 			for ( j = 0; j < body->children.Num(); j++ ) {
 
 				child = body->children[j]->primaryConstraint;
 
-				// child->I = - child->body1->J.Transpose() * child->body1->I * child->body1->J;
 				childI.SetSize( child->J1.GetNumRows(), child->J1.GetNumRows() );
 				child->body1->J.TransposeMultiply( child->body1->I ).Multiply( childI, child->body1->J );
 				childI.Negate();
@@ -4675,7 +4791,6 @@ void idAFTree::Response( const idAFConstraint *constraint, int row, int auxiliar
 		}
 		body->GetResponseForce( body->numResponses ) = constraint->J2.SubVec6( row );
 	}
-
 
 	// solve for primary constraints
 	Solve( auxiliaryIndex );
@@ -4900,15 +5015,27 @@ void idPhysics_AF::EvaluateConstraints( float timeStep ) {
 /*
 ================
 idPhysics_AF::EvaluateBodies
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::EvaluateBodies( float timeStep ) {
 	int i;
 	idAFBody *body;
+	float bMass, invbMass;
 	idMat3 axis;
 
 	for ( i = 0; i < bodies.Num(); i++ ) {
 		body = bodies[i];
+
+		if( this->water != NULL && body->GetWaterLevel() > 0.0f ) {
+			bMass = body->liquidMass;
+			invbMass = body->invLiquidMass;
+		}
+		else {
+			bMass = body->mass;
+			invbMass = body->invMass;
+		}
 
 		// we transpose the axis before using it because idMat3 is column-major
 		axis = body->current->worldAxis.Transpose();
@@ -4917,20 +5044,20 @@ void idPhysics_AF::EvaluateBodies( float timeStep ) {
 		if ( body->centerOfMass.Compare( vec3_origin, CENTER_OF_MASS_EPSILON ) ) {
 
 			// spatial inertia in world space
-			body->I.Set( body->mass * mat3_identity, mat3_zero,
+			body->I.Set( bMass * mat3_identity, mat3_zero,
 							mat3_zero, axis * body->inertiaTensor * axis.Transpose() );
 
 			// inverse spatial inertia in world space
-			body->inverseWorldSpatialInertia.Set( body->invMass * mat3_identity, mat3_zero,
+			body->inverseWorldSpatialInertia.Set( invbMass * mat3_identity, mat3_zero,
 											mat3_zero, axis * body->inverseInertiaTensor * axis.Transpose() );
 
 			body->fl.spatialInertiaSparse = true;
 		}
 		else {
-			idMat3 massMoment = body->mass * SkewSymmetric( body->centerOfMass );
+			idMat3 massMoment = bMass * SkewSymmetric( body->centerOfMass );
 
 			// spatial inertia in world space
-			body->I.Set( body->mass * mat3_identity, massMoment,
+			body->I.Set( bMass * mat3_identity, massMoment,
 								massMoment.Transpose(), axis * body->inertiaTensor * axis.Transpose() );
 
 			// inverse spatial inertia in world space
@@ -5333,17 +5460,19 @@ void idPhysics_AF::VerifyContactConstraints( void ) {
 /*
 ================
 idPhysics_AF::Evolve
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::Evolve( float timeStep ) {
 	int i;
-	float angle;
+	float angle,waterLevel;
 	idVec3 vec;
 	idAFBody *body;
 	idVec6 force;
 	idRotation rotation;
 	float vSqr, maxLinearVelocity, maxAngularVelocity;
-
+	
 	maxLinearVelocity = af_maxLinearVelocity.GetFloat() / timeStep;
 	maxAngularVelocity = af_maxAngularVelocity.GetFloat() / timeStep;
 
@@ -5392,7 +5521,15 @@ void idPhysics_AF::Evolve( float timeStep ) {
 		body->next->worldAxis.OrthoNormalizeSelf();
 
 		// linear and angular friction
-		body->next->spatialVelocity.SubVec3(0) -= body->linearFriction * body->next->spatialVelocity.SubVec3(0);
+		// apply a higher friction value if the AF is underwater
+		waterLevel = body->GetWaterLevel();
+		if( waterLevel == 0.0f || this->water == NULL ) {
+			body->next->spatialVelocity.SubVec3(0) -= body->linearFriction * body->next->spatialVelocity.SubVec3(0);
+		}
+		else {
+			body->next->spatialVelocity.SubVec3(0) -= (body->linearFriction * (this->water->GetViscosity()+WATER_FRICTION) * waterLevel) * body->next->spatialVelocity.SubVec3(0);
+		}
+		
 		body->next->spatialVelocity.SubVec3(1) -= body->angularFriction * body->next->spatialVelocity.SubVec3(1);
 	}
 }
@@ -5404,18 +5541,28 @@ idPhysics_AF::CollisionImpulse
   apply impulse to the colliding bodies
   the current state of the body should be set to the moment of impact
   this is silly as it doesn't take the AF structure into account
+
+Modified for water physics
 ================
 */
 bool idPhysics_AF::CollisionImpulse( float timeStep, idAFBody *body, trace_t &collision ) {
 	idVec3 r, velocity, impulse;
 	idMat3 inverseWorldInertiaTensor;
 	float impulseNumerator, impulseDenominator;
+	float invMass;
 	impactInfo_t info;
 	idEntity *ent;
 
 	ent = gameLocal.entities[collision.c.entityNum];
 	if ( ent == self ) {
 		return false;
+	}
+
+	if( this->water != NULL ) {
+		invMass = body->invLiquidMass;
+	}
+	else {
+		invMass = body->invMass;
 	}
 
 	// get info from other entity involved
@@ -5432,7 +5579,7 @@ bool idPhysics_AF::CollisionImpulse( float timeStep, idAFBody *body, trace_t &co
 	}
 	inverseWorldInertiaTensor = body->current->worldAxis.Transpose() * body->inverseInertiaTensor * body->current->worldAxis;
 	impulseNumerator = -( 1.0f + body->bouncyness ) * ( velocity * collision.c.normal );
-	impulseDenominator = body->invMass + ( ( inverseWorldInertiaTensor * r.Cross( collision.c.normal ) ).Cross( r ) * collision.c.normal );
+	impulseDenominator = invMass + ( ( inverseWorldInertiaTensor * r.Cross( collision.c.normal ) ).Cross( r ) * collision.c.normal );
 	if ( info.invMass ) {
 		impulseDenominator += info.invMass + ( ( info.invInertiaTensor * info.position.Cross( collision.c.normal ) ).Cross( info.position ) * collision.c.normal );
 	}
@@ -5539,6 +5686,8 @@ idPhysics_AF::CheckForCollisions
   check for collisions between the current and next state
   if there is a collision the next state is set to the state at the moment of impact
   assumes all bodies are linked for collision detection and relinks all bodies after moving them
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::CheckForCollisions( float timeStep ) {
@@ -5549,6 +5698,7 @@ void idPhysics_AF::CheckForCollisions( float timeStep ) {
 	idRotation rotation;
 	trace_t collision;
 	idEntity *passEntity;
+	impactInfo_t info;
 
 	// clear list with collisions
 	collisions.SetNum( 0, false );
@@ -5579,7 +5729,6 @@ void idPhysics_AF::CheckForCollisions( float timeStep ) {
 			// if there was a collision
 			if ( gameLocal.clip.Motion( collision, body->current->worldOrigin, body->next->worldOrigin, rotation,
 										body->clipModel, body->current->worldAxis, body->clipMask, passEntity ) ) {
-
 				// set the next state to the state at the moment of impact
 				body->next->worldOrigin = collision.endpos;
 				body->next->worldAxis = collision.endAxis;
@@ -5589,6 +5738,25 @@ void idPhysics_AF::CheckForCollisions( float timeStep ) {
 				collisions.SetNum( index + 1, false );
 				collisions[index].trace = collision;
 				collisions[index].body = body;
+			}
+
+			// Check for water collision
+			// ideally we could do this check in one step but if a body moves quickly in shallow water
+			// they will occasionally clip through a solid entity (ie. fall through the floor)
+			if ( gameLocal.clip.Motion( collision, body->current->worldOrigin, body->next->worldOrigin, rotation,
+										body->clipModel, body->current->worldAxis, MASK_WATER, passEntity ) ) {
+				idEntity *ent = gameLocal.entities[collision.c.entityNum];
+
+				// if the object collides with something with a physics_liquid
+				if( ent->GetPhysics()->IsType( idPhysics_Liquid::Type ) ) {
+					idPhysics_Liquid *liquid = static_cast<idPhysics_Liquid *>(ent->GetPhysics());
+					impactInfo_t info;
+
+					this->self->GetImpactInfo(ent,collision.c.id,collision.c.point,&info);
+
+					this->SetWater(liquid);
+					this->water->Splash(this->self,body->GetVolume(),info,collision);
+				}
 			}
 
 #ifdef TEST_COLLISION_DETECTION
@@ -5604,6 +5772,7 @@ void idPhysics_AF::CheckForCollisions( float timeStep ) {
 		body->clipModel->Link( gameLocal.clip, self, body->clipModel->GetId(), body->next->worldOrigin, body->next->worldAxis );
 	}
 }
+
 
 /*
 ================
@@ -5761,17 +5930,58 @@ void idPhysics_AF::ClearExternalForce( void ) {
 /*
 ================
 idPhysics_AF::AddGravity
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::AddGravity( void ) {
-	int i;
 	idAFBody *body;
+	idVec3 grav( this->liquidDensity * this->gravityVector );
+	float waterLevel,wDensity;
+	bool inWater,bodyBuoyancy;
+	int i;
 
+	if( this->SetWaterLevelf() == 1.0f ) {
+		wDensity = this->water->GetDensity();
+		bodyBuoyancy = af_useBodyDensityBuoyancy.GetBool();
+	}
+
+	inWater = false;
 	for ( i = 0; i < bodies.Num(); i++ ) {
 		body = bodies[i];
+
 		// add gravitational force
-		body->current->externalForce.SubVec3( 0 ) += body->mass * gravityVector;
+		waterLevel = body->SetWaterLevel(this->water,this->gravityNormal,this->fixedDensityBuoyancy);
+		if( waterLevel > 0.0f ) {
+			if( !this->fixedDensityBuoyancy && !bodyBuoyancy )
+			{
+				body->liquidMass = body->mass;
+				body->invLiquidMass = body->invMass;
+			}
+			else {
+				body->liquidMass = body->volume * this->liquidDensity * LIQUID_MASS_MUL;
+				body->invLiquidMass = 1 / body->liquidMass;
+			}
+
+			// we float the body in water	
+			if( bodyBuoyancy ) 
+				body->current->externalForce.SubVec3( 0 ) += (body->mass - (body->volume * wDensity * waterLevel)) * gravityVector;
+			else if( this->fixedDensityBuoyancy )
+				body->current->externalForce.SubVec3( 0 ) += body->volume * ( this->liquidDensity - (wDensity * waterLevel) ) * gravityVector;
+			else
+				body->current->externalForce.SubVec3( 0 ) += body->mass * grav * waterLevel;
+
+			inWater = true;
+		}
+		else {
+			body->current->externalForce.SubVec3( 0 ) += body->mass * gravityVector;
+		}
 	}
+
+	// if all AFBodies are not in the water, we assume the whole entity is not in water so
+	// we clear the water flag
+	if( !inWater )
+		this->water = NULL;
 }
 
 /*
@@ -5908,6 +6118,8 @@ float idPhysics_AF::GetContactFrictionScale( void ) const {
 /*
 ================
 idPhysics_AF::TestIfAtRest
+
+Modified for water physics
 ================
 */
 bool idPhysics_AF::TestIfAtRest( float timeStep ) {
@@ -5918,6 +6130,11 @@ bool idPhysics_AF::TestIfAtRest( float timeStep ) {
 	if ( current.atRest >= 0 ) {
 		return true;
 	}
+
+	// prevent bodies from going in active after floating.  You don't really want bodies to 
+	// go inactive if they're in water (sometimes they just have a long way to go before surfacing)
+	if( this->water != NULL )
+		current.activateTime = 0.0f;
 
 	current.activateTime += timeStep;
 
@@ -5966,20 +6183,41 @@ bool idPhysics_AF::TestIfAtRest( float timeStep ) {
 	}
 
 	// test if the velocity or acceleration of any body is still too large to come to rest
-	for ( i = 0; i < bodies.Num(); i++ ) {
-		body = bodies[i];
+	// we do seperates tests for if we're in water or not
+	if( this->water == NULL ) {
+		for ( i = 0; i < bodies.Num(); i++ ) {
+			body = bodies[i];
 
-		if ( body->current->spatialVelocity.SubVec3(0).LengthSqr() > Square( suspendVelocity[0] ) ) {
-			return false;
+			if ( body->current->spatialVelocity.SubVec3(0).LengthSqr() > ( suspendVelocity[0] ) ) {
+				return false;
+			}
+			if ( body->current->spatialVelocity.SubVec3(1).LengthSqr() > ( suspendVelocity[1] ) ) {
+				return false;
+			}
+			if ( body->acceleration.SubVec3(0).LengthSqr() > Square( suspendAcceleration[0] ) ) {
+				return false;
+			}
+			if ( body->acceleration.SubVec3(1).LengthSqr() > Square( suspendAcceleration[1] ) ) {
+				return false;
+			}
 		}
-		if ( body->current->spatialVelocity.SubVec3(1).LengthSqr() > Square( suspendVelocity[1] ) ) {
-			return false;
-		}
-		if ( body->acceleration.SubVec3(0).LengthSqr() > Square( suspendAcceleration[0] ) ) {
-			return false;
-		}
-		if ( body->acceleration.SubVec3(1).LengthSqr() > Square( suspendAcceleration[1] ) ) {
-			return false;
+	}
+	else {
+		for ( i = 0; i < bodies.Num(); i++ ) {
+			body = bodies[i];
+
+			if ( body->current->spatialVelocity.SubVec3(0).LengthSqr() > Square( suspendVelocity[0] ) ) {
+				return false;
+			}
+			if ( body->current->spatialVelocity.SubVec3(1).LengthSqr() > Square( suspendVelocity[1] ) ) {
+				return false;
+			}
+			if ( body->acceleration.SubVec3(0).LengthSqr() > Square( suspendAcceleration[0] ) ) {
+				return false;
+			}
+			if ( body->acceleration.SubVec3(1).LengthSqr() > Square( suspendAcceleration[1] ) ) {
+				return false;
+			}
 		}
 	}
 
@@ -6114,12 +6352,30 @@ void idPhysics_AF::SetMass( float mass, int id ) {
 /*
 ================
 idPhysics_AF::GetMass
+
+Modified for water physics
 ================
 */
 float idPhysics_AF::GetMass( int id ) const {
 	if ( id >= 0 && id < bodies.Num() ) {
-		return bodies[id]->mass;
+		if( bodies[id]->GetWaterLevel() > 0.0f )
+			return bodies[id]->liquidMass;
+		else
+			return bodies[id]->mass;
 	}
+	
+	// if body in water, we have to recompute the total mass
+	if( this->water != NULL ) {
+		int i;
+		float waterMass = 0.0f;
+
+		for( i = 0; i < this->bodies.Num(); i++ ) {
+			waterMass += this->bodies[i]->liquidMass;
+		}
+	
+		return waterMass;
+	}
+
 	return totalMass;
 }
 
@@ -6372,8 +6628,14 @@ bool idPhysics_AF::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	current.pushVelocity.Zero();
 
 	if ( IsOutsideWorld() ) {
+		// [ Quake IV ] Warning shouldn't crash the game --->
+		if (bodies.Num() && bodies[0] && bodies[0]->current && self) {
 		gameLocal.Warning( "articulated figure moved outside world bounds for entity '%s' type '%s' at (%s)",
 							self->name.c_str(), self->GetType()->classname, bodies[0]->current->worldOrigin.ToString(0) );
+		} else {
+		gameLocal.Warning( "articulated figure moved outside world bounds for entity '%s' type '%s' -- no body",
+							self->name.c_str(), self->GetType()->classname );
+		} // <---
 		Rest();
 	}
 
@@ -6510,7 +6772,6 @@ void idPhysics_AF::DebugDraw( void ) {
 			}
 			collisionModelManager->DrawModel( body->clipModel->Handle(), body->clipModel->GetOrigin(),
 										body->clipModel->GetAxis(), vec3_origin, 0.0f );
-			//DrawTraceModelSilhouette( gameLocal.GetLocalPlayer()->GetEyePosition(), body->clipModel );
 		}
 	}
 
@@ -6521,17 +6782,21 @@ void idPhysics_AF::DebugDraw( void ) {
 		}
 	}
 
+	// modified for water physics --->
 	if ( af_showMass.GetBool() ) {
 		for ( i = 0; i < bodies.Num(); i++ ) {
 			body = bodies[i];
-			gameRenderWorld->DrawText( va( "\n%1.2f", 1.0f / body->GetInverseMass() ), body->GetWorldOrigin(), 0.08f, colorCyan, gameLocal.GetLocalPlayer()->viewAngles.ToMat3(), 1 );
+			if( body->GetWaterLevel() > 0.0f )
+				gameRenderWorld->DrawText( va( "\n%1.2f", body->liquidMass ), body->GetWorldOrigin(), 0.08f, colorCyan, gameLocal.GetLocalPlayer()->viewAngles.ToMat3(), 1 );
+			else
+				gameRenderWorld->DrawText( va( "\n%1.2f", body->mass ), body->GetWorldOrigin(), 0.08f, colorCyan, gameLocal.GetLocalPlayer()->viewAngles.ToMat3(), 1 );
 		}
 	}
 
 	if ( af_showTotalMass.GetBool() ) {
 		axis = gameLocal.GetLocalPlayer()->viewAngles.ToMat3();
-		gameRenderWorld->DrawText( va( "\n%1.2f", totalMass ), bodies[0]->GetWorldOrigin() + axis[2] * 8.0f, 0.15f, colorCyan, axis, 1 );
-	}
+		gameRenderWorld->DrawText( va( "\n%1.2f", this->GetMass() ), bodies[0]->GetWorldOrigin() + axis[2] * 8.0f, 0.15f, colorCyan, axis, 1 );
+	} // <---
 
 	if ( af_showInertia.GetBool() ) {
 		for ( i = 0; i < bodies.Num(); i++ ) {
@@ -6616,6 +6881,19 @@ idPhysics_AF::idPhysics_AF( void ) {
 	bouncyness = 0.4f;
 	totalMass = 0.0f;
 	forceTotalMass = -1.0f;
+
+	// water physics --->
+	// sets default buoyancy property based on CVar
+	if( af_useFixedDensityBuoyancy.GetBool() ) {
+		this->fixedDensityBuoyancy = true;
+		this->liquidDensity = DEFAULT_LIQUID_DENSITY;
+	}
+	else {
+		this->fixedDensityBuoyancy = false;
+		this->liquidDensity = DEFAULT_LIQUID_SCALAR;
+	}
+	this->water = NULL;
+	// <---
 
 	suspendVelocity.Set( SUSPEND_LINEAR_VELOCITY, SUSPEND_ANGULAR_VELOCITY );
 	suspendAcceleration.Set( SUSPEND_LINEAR_ACCELERATION, SUSPEND_LINEAR_ACCELERATION );
@@ -6749,6 +7027,11 @@ void idPhysics_AF::Save( idSaveGame *saveFile ) const {
 	saveFile->WriteFloat( totalMass );
 	saveFile->WriteFloat( forceTotalMass );
 
+	// water physics --->
+	saveFile->WriteBool( this->fixedDensityBuoyancy );
+	saveFile->WriteFloat( this->liquidDensity );
+	// <---
+
 	saveFile->WriteVec2( suspendVelocity );
 	saveFile->WriteVec2( suspendAcceleration );
 	saveFile->WriteFloat( noMoveTime );
@@ -6822,6 +7105,11 @@ void idPhysics_AF::Restore( idRestoreGame *saveFile ) {
 	saveFile->ReadFloat( bouncyness );
 	saveFile->ReadFloat( totalMass );
 	saveFile->ReadFloat( forceTotalMass );
+
+	// water physics --->
+	saveFile->ReadBool( this->fixedDensityBuoyancy );
+	saveFile->ReadFloat( this->liquidDensity );
+	// <---
 
 	saveFile->ReadVec2( suspendVelocity );
 	saveFile->ReadVec2( suspendAcceleration );
@@ -7009,6 +7297,7 @@ int idPhysics_AF::AddBody( idAFBody *body ) {
 
 	if ( !body->clipModel ) {
 		gameLocal.Error( "idPhysics_AF::AddBody: body '%s' has no clip model.", body->name.c_str() );
+		return 0; // BFG
 	}
 
 	if ( bodies.Find( body ) ) {
@@ -7197,7 +7486,6 @@ idAFBody *idPhysics_AF::GetBody( const char *bodyName ) const {
 			return bodies[i];
 		}
 	}
-
 	return NULL;
 }
 
@@ -7227,7 +7515,6 @@ idAFConstraint *idPhysics_AF::GetConstraint( const char *constraintName ) const 
 			return constraints[i];
 		}
 	}
-
 	return NULL;
 }
 
@@ -7392,6 +7679,8 @@ void idPhysics_AF::SetDefaultFriction( float linear, float angular, float contac
 /*
 ================
 idPhysics_AF::GetImpactInfo
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::GetImpactInfo( const int id, const idVec3 &point, impactInfo_t *info ) const {
@@ -7399,7 +7688,11 @@ void idPhysics_AF::GetImpactInfo( const int id, const idVec3 &point, impactInfo_
 		memset( info, 0, sizeof( *info ) );
 		return;
 	}
-	info->invMass = 1.0f / bodies[id]->mass;
+	if( this->water != NULL )
+		info->invMass = bodies[id]->invLiquidMass;
+	else
+		info->invMass = bodies[id]->invMass;
+
 	info->invInertiaTensor = bodies[id]->current->worldAxis.Transpose() * bodies[id]->inverseInertiaTensor * bodies[id]->current->worldAxis;
 	info->position = point - bodies[id]->current->worldOrigin;
 	info->velocity = bodies[id]->current->spatialVelocity.SubVec3(0) + bodies[id]->current->spatialVelocity.SubVec3(1).Cross( info->position );
@@ -7408,6 +7701,8 @@ void idPhysics_AF::GetImpactInfo( const int id, const idVec3 &point, impactInfo_
 /*
 ================
 idPhysics_AF::ApplyImpulse
+
+Modified for water physics
 ================
 */
 void idPhysics_AF::ApplyImpulse( const int id, const idVec3 &point, const idVec3 &impulse ) {
@@ -7418,7 +7713,12 @@ void idPhysics_AF::ApplyImpulse( const int id, const idVec3 &point, const idVec3
 		return;
 	}
 	idMat3 invWorldInertiaTensor = bodies[id]->current->worldAxis.Transpose() * bodies[id]->inverseInertiaTensor * bodies[id]->current->worldAxis;
-	bodies[id]->current->spatialVelocity.SubVec3(0) += bodies[id]->invMass * impulse;
+	
+	if( this->water != NULL )
+		bodies[id]->current->spatialVelocity.SubVec3(0) += bodies[id]->invLiquidMass * impulse;
+	else
+		bodies[id]->current->spatialVelocity.SubVec3(0) += bodies[id]->invMass * impulse;
+
 	bodies[id]->current->spatialVelocity.SubVec3(1) += invWorldInertiaTensor * (point - bodies[id]->current->worldOrigin).Cross( impulse );
 	Activate();
 }
@@ -7569,19 +7869,45 @@ void idPhysics_AF::Rotate( const idRotation &rotation, int id ) {
 	int i;
 	idAFBody *body;
 
+	/* copied from Doom3World -- >
+	* 
+	* Ishtvan : "idPhysics_AF::SetAxis was apparently never used in Doom3. 
+	* When I tried to use it in The Dark Mod to rotate a ragdoll, I ran into this problem:
+	* 
+	* If you call idPhysics_AF::SetAxis repeatedly, even with something like the identity matrix 
+	* as an argument, you will eventually end up stretching the AF bodies (as if you were 
+	* multiplying by an invalid rotation matrix), and eventually the AF stretches out so far 
+	* that it can no longer solve the AF equations and your FPS goes to crap.
+	* 
+	* SetAxis eventually calls idPhysics_AF::Rotate. In the process, there are a few 
+	* Mat3 to idRotation and back again conversions, and I guess all the little conversion 
+	* errors added up and resulted in a rotation that wasn't normalized and could cause small 
+	* stretching. This stretching added up each time you called SetAxis(). With the fix below, 
+	* the rotation is normalized right before applying it, and this worked to prevent the stretching 
+	* no matter how many times you call SetAxis.
+	* 
+	* There is probably some CPU cost to renormalizing the rotation, but in my case I'm calling this 
+	* relatively rarely, so it's not an issue. A less expensive solution might be to rewrite 
+	* the arguments of these functions to keep everything a Mat3 the entire time.
+	* */
+
+	// ishtvan: Stop the stretching error due to too many
+	// mat3 to rotation to mat3 conversions
+	idRotation rotationC = rotation;
+	rotationC.ReCalculateMatrix();
+
 	if ( !worldConstraintsLocked ) {
 		// rotate constraints attached to the world
 		for ( i = 0; i < constraints.Num(); i++ ) {
-			constraints[i]->Rotate( rotation );
+			constraints[i]->Rotate( rotationC );
 		}
 	}
 
 	// rotate all the bodies
 	for ( i = 0; i < bodies.Num(); i++ ) {
 		body = bodies[i];
-
-		body->current->worldOrigin *= rotation;
-		body->current->worldAxis *= rotation.ToMat3();
+		body->current->worldOrigin *= rotationC;
+		body->current->worldAxis *= rotationC.ToMat3();
 	}
 
 	Activate();
@@ -7910,10 +8236,6 @@ const float	AF_VELOCITY_MAX				= 16000;
 const int	AF_VELOCITY_TOTAL_BITS		= 16;
 const int	AF_VELOCITY_EXPONENT_BITS	= idMath::BitsForInteger( idMath::BitsForFloat( AF_VELOCITY_MAX ) ) + 1;
 const int	AF_VELOCITY_MANTISSA_BITS	= AF_VELOCITY_TOTAL_BITS - 1 - AF_VELOCITY_EXPONENT_BITS;
-//const float	AF_FORCE_MAX				= 1e20f;
-//const int	AF_FORCE_TOTAL_BITS			= 16;
-//const int	AF_FORCE_EXPONENT_BITS		= idMath::BitsForInteger( idMath::BitsForFloat( AF_FORCE_MAX ) ) + 1;
-//const int	AF_FORCE_MANTISSA_BITS		= AF_FORCE_TOTAL_BITS - 1 - AF_FORCE_EXPONENT_BITS;
 
 /*
 ================
@@ -7952,13 +8274,6 @@ void idPhysics_AF::WriteToSnapshot( idBitMsgDelta &msg ) const {
 		msg.WriteDeltaFloat( 0.0f, state->spatialVelocity[3], AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
 		msg.WriteDeltaFloat( 0.0f, state->spatialVelocity[4], AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
 		msg.WriteDeltaFloat( 0.0f, state->spatialVelocity[5], AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
-/*		msg.WriteDeltaFloat( 0.0f, state->externalForce[0], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		msg.WriteDeltaFloat( 0.0f, state->externalForce[1], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		msg.WriteDeltaFloat( 0.0f, state->externalForce[2], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		msg.WriteDeltaFloat( 0.0f, state->externalForce[3], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		msg.WriteDeltaFloat( 0.0f, state->externalForce[4], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		msg.WriteDeltaFloat( 0.0f, state->externalForce[5], AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-*/
 	}
 }
 
@@ -7999,15 +8314,55 @@ void idPhysics_AF::ReadFromSnapshot( const idBitMsgDelta &msg ) {
 		state->spatialVelocity[3] = msg.ReadDeltaFloat( 0.0f, AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
 		state->spatialVelocity[4] = msg.ReadDeltaFloat( 0.0f, AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
 		state->spatialVelocity[5] = msg.ReadDeltaFloat( 0.0f, AF_VELOCITY_EXPONENT_BITS, AF_VELOCITY_MANTISSA_BITS );
-/*		state->externalForce[0] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		state->externalForce[1] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		state->externalForce[2] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		state->externalForce[3] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		state->externalForce[4] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-		state->externalForce[5] = msg.ReadDeltaFloat( 0.0f, AF_FORCE_EXPONENT_BITS, AF_FORCE_MANTISSA_BITS );
-*/
 		state->worldAxis = quat.ToMat3();
 	}
 
 	UpdateClipModels();
 }
+
+// Water physics --->
+/*
+================
+idPhysics_AF::SetLiquidDensity
+================
+*/
+void idPhysics_AF::SetLiquidDensity( float density )
+{
+	this->liquidDensity = density;
+}
+
+/*
+================
+idPhysics_AF::GetLiquidDensity
+================
+*/
+float idPhysics_AF::GetLiquidDensity() const
+{
+	return this->liquidDensity;
+}
+
+/*
+================
+idPhysics_AF::SetFixedDensityBuoyancy	
+	This will reset the liquid density to the default value depending on the mode.
+================
+*/
+void idPhysics_AF::SetFixedDensityBuoyancy( bool fixed )
+{
+	this->fixedDensityBuoyancy = fixed;
+	if( this->fixedDensityBuoyancy )
+		this->liquidDensity = DEFAULT_LIQUID_DENSITY;
+	else
+		this->liquidDensity = DEFAULT_LIQUID_SCALAR;
+}
+
+/*
+================
+idPhysics_AF::GetFixedDensityBuoyancy
+================
+*/
+bool idPhysics_AF::GetFixedDensityBuoyancy() const
+{
+	return this->fixedDensityBuoyancy;
+}
+// <---

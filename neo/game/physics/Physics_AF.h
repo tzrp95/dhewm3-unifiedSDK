@@ -696,6 +696,12 @@ public:
 	void					SetFrictionDirection( const idVec3 &dir );
 	bool					GetFrictionDirection( idVec3 &dir ) const;
 
+	// water physics --->
+	float					GetVolume( void ) const { return volume; }
+	float					GetWaterLevel() const;
+	float					SetWaterLevel( idPhysics_Liquid *l, const idVec3 &gravityNormal, bool fixedDensityBuoyancy );
+	// <---
+
 	void					SetContactMotorDirection( const idVec3 &dir );
 	bool					GetContactMotorDirection( idVec3 &dir ) const;
 	void					SetContactMotorVelocity( float vel ) { contactMotorVelocity = vel; }
@@ -735,6 +741,13 @@ private:
 	idVec3					centerOfMass;				// center of mass of body
 	idMat3					inertiaTensor;				// inertia tensor
 	idMat3					inverseInertiaTensor;		// inverse inertia tensor
+
+	// water physics --->
+	float					volume;						// volume of body
+	float					liquidMass;					// mass of object in a liquid
+	float					invLiquidMass;				// inverse liquid mass
+	float					waterLevel;					// percent of body in water
+	// <---
 
 							// physics state
 	AFBodyPState_t			state[2];
@@ -893,6 +906,16 @@ public:
 							// update the clip model positions
 	void					UpdateClipModels( void );
 
+	// water physics --->
+							// buoyancy stuff
+	void					SetLiquidDensity( float density );
+	float					GetLiquidDensity() const;
+
+							// this will reset liquidDensity so be careful when using it
+	void					SetFixedDensityBuoyancy( bool fixed );
+	bool					GetFixedDensityBuoyancy() const;
+	// <---
+
 public:	// common physics interface
 	void					SetClipModel( idClipModel *model, float density, int id = 0, bool freeOld = true );
 	idClipModel *			GetClipModel( int id = 0 ) const;
@@ -1016,6 +1039,12 @@ private:
 							// physics state
 	AFPState_t				current;
 	AFPState_t				saved;
+
+	// water physics --->
+	bool					fixedDensityBuoyancy;			// treats liquid Density as THE density for each body when the AF is in liquid.
+															// otherwise liquidDensity is just a gravity scalar for the AF in any liquid.
+	float					liquidDensity;					// explained above.
+	// <---
 
 	idAFBody *				masterBody;						// master body
 	idLCP *					lcp;							// linear complementarity problem solver

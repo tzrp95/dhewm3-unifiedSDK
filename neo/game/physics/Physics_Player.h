@@ -51,14 +51,8 @@ typedef enum {
 	PM_NOCLIP				// flying without collision detection nor gravity
 } pmtype_t;
 
-typedef enum {
-	WATERLEVEL_NONE,
-	WATERLEVEL_FEET,
-	WATERLEVEL_WAIST,
-	WATERLEVEL_HEAD
-} waterLevel_t;
 
-#define	MAXTOUCH					32
+#define	MAXTOUCH			32
 
 typedef struct playerPState_s {
 	idVec3					origin;
@@ -91,14 +85,17 @@ public:
 	void					SetKnockBack( const int knockBackTime );
 	void					SetDebugLevel( bool set );
 							// feed back from last physics frame
-	waterLevel_t			GetWaterLevel( void ) const;
-	int						GetWaterType( void ) const;
 	bool					HasJumped( void ) const;
 	bool					HasSteppedUp( void ) const;
 	float					GetStepUp( void ) const;
 	bool					IsCrouching( void ) const;
 	bool					OnLadder( void ) const;
 	const idVec3 &			PlayerGetOrigin( void ) const;	// != GetOrigin
+
+	// Dashing (SpookyScary)
+	float					GetPreDashSpeed( void ) const;
+    bool					IsDashing( void ) const;
+	void					StartDash( void );;
 
 public:	// common physics interface
 	bool					Evaluate( int timeStepMSec, int endTimeMSec );
@@ -131,6 +128,8 @@ public:	// common physics interface
 
 	void					WriteToSnapshot( idBitMsgDelta &msg ) const;
 	void					ReadFromSnapshot( const idBitMsgDelta &msg );
+
+	void					SetGravityMultiplier( float mult);  // Gravity Multiplier (Ivan)
 
 private:
 	// player physics state
@@ -165,9 +164,14 @@ private:
 	bool					ladder;
 	idVec3					ladderNormal;
 
-	// results of last evaluate
-	waterLevel_t			waterLevel;
-	int						waterType;
+	// Double Jump (Ivan)
+	bool					doubleJumpDone;
+	int						lastJumpTime;
+	float					gravityMultiplier;
+
+	// Dashing (SpookyScary)
+	bool					dashing;
+	float					preDashSpeed;
 
 private:
 	float					CmdScale( const usercmd_t &cmd ) const;
@@ -189,9 +193,15 @@ private:
 	void					CheckLadder( void );
 	bool					CheckJump( void );
 	bool					CheckWaterJump( void );
-	void					SetWaterLevel( void );
 	void					DropTimers( void );
 	void					MovePlayer( int msec );
+
+	// Double jump (Ivan)
+	bool					CheckDoubleJumpGroundDistance( void );
+	bool					CheckDoubleJump( void );
+
+	// Dashing (SpookyScary)
+	void					DashMove( void );
 };
 
 #endif /* !__PHYSICS_PLAYER_H__ */

@@ -86,7 +86,7 @@ idForce_Field::Restore
 */
 void idForce_Field::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( (int &)type );
-	savefile->ReadInt( (int &)applyType);
+	savefile->ReadInt( (int &)applyType );
 	savefile->ReadFloat( magnitude );
 	savefile->ReadVec3( dir );
 	savefile->ReadFloat( randomTorque );
@@ -239,7 +239,7 @@ void idForce_Field::Evaluate( int time ) {
 				physics->SetLinearVelocity( force * magnitude, cm->GetId() );
 				if ( randomTorque != 0.0f ) {
 					angularVelocity = physics->GetAngularVelocity( cm->GetId() );
-					physics->SetAngularVelocity( 0.5f * (angularVelocity + torque * randomTorque), cm->GetId() );
+					physics->SetAngularVelocity( 0.5f * ( angularVelocity + torque * randomTorque ), cm->GetId() );
 				}
 				break;
 			}

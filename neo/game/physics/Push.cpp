@@ -804,6 +804,10 @@ int idPush::TryRotatePushEntity( trace_t &results, idEntity *check, idClipModel 
 
 	newRotation.Set( rotation.GetOrigin(), rotation.GetVec(), checkAngle );
 
+	// Added from BFG --->
+	// "This code prevents msvc 6.0 & 7.0 from screwing up the above code in release builds moving less floats than it should"
+	static float shit = checkAngle; // <---
+
 	newRotation.RotatePoint( rotationPoint );
 
 	// rotate the entity
@@ -932,35 +936,6 @@ int idPush::TryTranslatePushEntity( trace_t &results, idEntity *check, idClipMod
 			// FIXME: handle sliding along more than one collision plane ?
 			// FIXME: this code has issues, player pushing box into corner in "maps/mre/aaron/test.map"
 
-/*
-			oldOrigin = physics->GetOrigin();
-
-			// movement still remaining
-			checkMove *= (1.0f - trace.fraction);
-
-			// project the movement along the collision plane
-			if ( !checkMove.ProjectAlongPlane( trace.c.normal, 0.1f, 1.001f ) ) {
-				return PUSH_BLOCKED;
-			}
-			checkMove *= 1.001f;
-
-			// move entity from collision point along the collision plane
-			physics->SetOrigin( trace.endpos );
-			ClipEntityTranslation( trace, check, NULL, NULL, checkMove );
-
-			if ( trace.fraction < 1.0f ) {
-				physics->SetOrigin( oldOrigin );
-				return PUSH_BLOCKED;
-			}
-
-			checkMove = trace.endpos - oldOrigin;
-
-			// move entity in reverse only colliding with pusher
-			physics->SetOrigin( trace.endpos );
-			ClipEntityTranslation( trace, check, clipModel, NULL, -move );
-
-			physics->SetOrigin( oldOrigin );
-*/
 			if ( trace.fraction < 1.0f ) {
 				return PUSH_BLOCKED;
 			}

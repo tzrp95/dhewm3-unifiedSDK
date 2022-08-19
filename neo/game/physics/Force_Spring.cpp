@@ -122,7 +122,7 @@ void idForce_Spring::Evaluate( int time ) {
 	}
 
 	force = pos2 - pos1;
-	dampingForce = ( damping * ( ((velocity2 - velocity1) * force) / (force * force) ) ) * force;
+	dampingForce = ( damping * ( ( ( velocity2 - velocity1 ) * force ) / ( force * force ) ) ) * force;
 	length = force.Normalize();
 
 	// if the spring is stretched

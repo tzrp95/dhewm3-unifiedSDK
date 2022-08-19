@@ -108,6 +108,7 @@ monsterMoveResult_t idPhysics_Monster::SlideMove( idVec3 &start, idVec3 &velocit
 		}
 
 		if ( tr.c.entityNum != ENTITYNUM_NONE ) {
+			assert( tr.c.entityNum < MAX_GENTITIES ); // BFG
 			blockingEntity = gameLocal.entities[ tr.c.entityNum ];
 		}
 
@@ -451,6 +452,11 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	idMat3 masterAxis;
 	float timeStep;
 
+	// water physics --->
+	waterLevel = WATERLEVEL_NONE;
+	waterType = 0;
+	// <---
+
 	timeStep = MS2SEC( timeStepMSec );
 
 	moveResult = MM_OK;
@@ -480,6 +486,9 @@ bool idPhysics_Monster::Evaluate( int timeStepMSec, int endTimeMSec ) {
 	current.velocity -= current.pushVelocity;
 
 	clipModel->Unlink();
+
+	// check water level / type
+	idPhysics_Monster::SetWaterLevel();		// water physics 
 
 	// check if on the ground
 	idPhysics_Monster::CheckGround( current );
@@ -662,7 +671,6 @@ idPhysics_Monster::Translate
 ================
 */
 void idPhysics_Monster::Translate( const idVec3 &translation, int id ) {
-
 	current.localOrigin += translation;
 	current.origin += translation;
 	clipModel->Link( gameLocal.clip, self, 0, current.origin, clipModel->GetAxis() );
