@@ -754,6 +754,9 @@ set(src_game
 	game/physics/Physics_Static.cpp
 	game/physics/Physics_StaticMulti.cpp
 	game/physics/Push.cpp
+	game/physics/Force_Grab.cpp
+	game/Grabber.cpp
+	game/EndLevel.cpp
 )
 
 add_globbed_headers(src_game "game")
