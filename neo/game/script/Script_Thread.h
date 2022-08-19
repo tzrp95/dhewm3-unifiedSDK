@@ -78,11 +78,6 @@ extern const idEventDef EV_Thread_FadeOut;
 extern const idEventDef EV_Thread_FadeTo;
 extern const idEventDef EV_Thread_Restart;
 
-// Grimm
-extern const idEventDef EV_Thread_ExecCMD;
-extern const idEventDef EV_Thread_Tip;
-extern const idEventDef EV_Thread_GetPlayer;
-
 class idThread : public idClass {
 private:
 	static idThread				*currentThread;
@@ -103,7 +98,7 @@ private:
 	bool						manualControl;
 
 	static int					threadIndex;
-	static idList<idThread *>	threadList;
+	static idList<idThread*>	threadList;
 
 	static trace_t				trace;
 
@@ -198,11 +193,6 @@ private:
 	void						Event_DrawText( const char *text, const idVec3 &origin, float scale, const idVec3 &color, const int align, const float lifetime );
 	void						Event_InfluenceActive( void );
 
-	// Grimm
-	void						Event_ExecCMD( const char *text );
-	void						Event_Tip( const char *message );
-	void						Event_GetPlayer( void );
-
 public:
 								CLASS_PROTOTYPE( idThread );
 
@@ -240,7 +230,7 @@ public:
 	static void					Restart( void );
 	static void					ObjectMoveDone( int threadnum, idEntity *obj );
 
-	static idList<idThread*>&	GetThreads ( void );
+	static idList<idThread*>	&GetThreads ( void );
 
 	bool						IsDoneProcessing ( void );
 	bool						IsDying			 ( void );
@@ -267,8 +257,8 @@ public:
 	void						SetThreadName( const char *name );
 	const char					*GetThreadName( void );
 
-	void						Error( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
-	void						Warning( const char *fmt, ... ) const id_attribute((format(printf,2,3)));
+	void						Error( const char *fmt, ... ) const id_attribute( ( format( printf, 2 , 3 ) ) );
+	void						Warning( const char *fmt, ... ) const id_attribute( ( format( printf, 2, 3 ) ) );
 
 	static idThread				*CurrentThread( void );
 	static int					CurrentThreadNum( void );

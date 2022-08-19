@@ -118,11 +118,6 @@ const idEventDef EV_Thread_DebugCircle( "debugCircle", "vvvfdf" );
 const idEventDef EV_Thread_DebugBounds( "debugBounds", "vvvf" );
 const idEventDef EV_Thread_DrawText( "drawText", "svfvdf" );
 const idEventDef EV_Thread_InfluenceActive( "influenceActive", NULL, 'd' );
-// Grimm
-const idEventDef EV_Thread_ExecCMD( "ExecCMD", "s" );
-const idEventDef EV_Thread_Tip( "Tip", "s" );
-const idEventDef EV_Thread_GetPlayer( "getPlayer", NULL, 'e' );
-
 
 CLASS_DECLARATION( idClass, idThread )
 	EVENT( EV_Thread_Execute,				idThread::Event_Execute )
@@ -208,16 +203,11 @@ CLASS_DECLARATION( idClass, idThread )
 	EVENT( EV_Thread_DebugBounds,			idThread::Event_DebugBounds )
 	EVENT( EV_Thread_DrawText,				idThread::Event_DrawText )
 	EVENT( EV_Thread_InfluenceActive,		idThread::Event_InfluenceActive )
-	// Grimm
-	EVENT( EV_Thread_ExecCMD,				idThread::Event_ExecCMD )
-	EVENT( EV_Thread_Tip,					idThread::Event_Tip )
-	EVENT( EV_Thread_GetPlayer,				idThread::Event_GetPlayer )
-
 END_CLASS
 
 idThread			*idThread::currentThread = NULL;
 int					idThread::threadIndex = 0;
-idList<idThread *>	idThread::threadList;
+idList<idThread*>	idThread::threadList;
 trace_t				idThread::trace;
 
 /*
@@ -248,9 +238,9 @@ idThread::BeginMultiFrameEvent
 ================
 */
 bool idThread::BeginMultiFrameEvent( idEntity *ent, const idEventDef *event ) {
-	if ( !currentThread ) {
+	if ( currentThread == NULL) {
 		gameLocal.Error( "idThread::BeginMultiFrameEvent called without a current thread" );
-		return false; // BFG
+		return false;
 	}
 	return currentThread->interpreter.BeginMultiFrameEvent( ent, event );
 }
@@ -261,9 +251,9 @@ idThread::EndMultiFrameEvent
 ================
 */
 void idThread::EndMultiFrameEvent( idEntity *ent, const idEventDef *event ) {
-	if ( !currentThread ) {
+	if ( currentThread == NULL ) {
 		gameLocal.Error( "idThread::EndMultiFrameEvent called without a current thread" );
-		return; // BFG
+		return;
 	}
 	currentThread->interpreter.EndMultiFrameEvent( ent, event );
 }
@@ -384,7 +374,6 @@ idThread::Save
 ================
 */
 void idThread::Save( idSaveGame *savefile ) const {
-
 	// We will check on restore that threadNum is still the same,
 	//  threads should have been restored in the same order.
 	savefile->WriteInt( threadNum );
@@ -412,7 +401,7 @@ idThread::Restore
 void idThread::Restore( idRestoreGame *savefile ) {
 	savefile->ReadInt( threadNum );
 
-	savefile->ReadObject( reinterpret_cast<idClass *&>( waitingForThread ) );
+	savefile->ReadObject( reinterpret_cast<idClass*&>( waitingForThread ) );
 	savefile->ReadInt( waitingFor );
 	savefile->ReadInt( waitingUntil );
 
@@ -439,7 +428,7 @@ void idThread::Init( void ) {
 		if ( threadIndex == 0 ) {
 			threadIndex = 1;
 		}
-	} while( GetThread( threadIndex ) );
+	} while ( GetThread( threadIndex ) );
 
 	threadNum = threadIndex;
 	threadList.Append( this );
@@ -497,7 +486,7 @@ void idThread::DisplayInfo( void ) {
 			"      Reason: ",  lastExecuteTime, gameLocal.time - lastExecuteTime );
 		if ( waitingForThread ) {
 			gameLocal.Printf( "Waiting for thread #%3i '%s'\n", waitingForThread->GetThreadNum(), waitingForThread->GetThreadName() );
-		} else if ( ( waitingFor != ENTITYNUM_NONE ) && /* BFG Start ---> */ ( waitingFor < MAX_GENTITIES ) /* <--- BFG End */ && ( gameLocal.entities[ waitingFor ] ) ) {
+		} else if ( ( waitingFor != ENTITYNUM_NONE ) && ( waitingFor < MAX_GENTITIES ) && ( gameLocal.entities[ waitingFor ] ) ) {
 			gameLocal.Printf( "Waiting for entity #%3i '%s'\n", waitingFor, gameLocal.entities[ waitingFor ]->name.c_str() );
 		} else if ( waitingUntil ) {
 			gameLocal.Printf( "Waiting until %d (%d ms total wait time)\n", waitingUntil, waitingUntil - lastExecuteTime );
@@ -909,7 +898,7 @@ idThread::WaitMS
 */
 void idThread::WaitMS( int time ) {
 	Pause();
-	// [ Quake IV ] add 1 ms to ensure a time of zero still works
+	// add 1 ms to ensure a time of zero still works
 	waitingUntil = gameLocal.time + time + 1;
 }
 
@@ -937,11 +926,13 @@ void idThread::WaitFrame( void ) {
 	}
 }
 
-/***********************************************************************
+/*
+========================================================================
 
   Script callable events
 
-***********************************************************************/
+========================================================================
+*/
 
 /*
 ================
@@ -1137,7 +1128,7 @@ void idThread::Event_GetEntity( const char *name ) {
 		entnum = atoi( &name[ 1 ] );
 		if ( ( entnum < 0 ) || ( entnum >= MAX_GENTITIES ) ) {
 			Error( "Entity number in string out of range." );
-			return; // BFG
+			return;
 		}
 		ReturnEntity( gameLocal.entities[ entnum ] );
 	} else {
@@ -1436,9 +1427,9 @@ void idThread::Event_OnSignal( int signal, idEntity *ent, const char *func ) {
 
 	assert( func );
 
-	if ( !ent ) {
+	if ( ent == NULL ) {
 		Error( "Entity not found" );
-		return; // BFG
+		return;
 	}
 
 	if ( ( signal < 0 ) || ( signal >= NUM_SIGNALS ) ) {
@@ -1459,9 +1450,9 @@ idThread::Event_ClearSignalThread
 ================
 */
 void idThread::Event_ClearSignalThread( int signal, idEntity *ent ) {
-	if ( !ent ) {
+	if ( ent == NULL ) {
 		Error( "Entity not found" );
-		return; // BFG
+		return;
 	}
 
 	if ( ( signal < 0 ) || ( signal >= NUM_SIGNALS ) ) {
@@ -1487,7 +1478,7 @@ void idThread::Event_SetCamera( idEntity *ent ) {
 		return;
 	}
 
-	gameLocal.SetCamera( ( idCamera * )ent );
+	gameLocal.SetCamera( ( idCamera* )ent );
 }
 
 /*
@@ -1563,7 +1554,7 @@ void idThread::Event_GetTraceEntity( void ) {
 	if ( trace.fraction < 1.0f ) {
 		ReturnEntity( gameLocal.entities[ trace.c.entityNum ] );
 	} else {
-		ReturnEntity( ( idEntity * )NULL );
+		ReturnEntity( ( idEntity* )NULL );
 	}
 }
 
@@ -1574,7 +1565,7 @@ idThread::Event_GetTraceJoint
 */
 void idThread::Event_GetTraceJoint( void ) {
 	if ( trace.fraction < 1.0f && trace.c.id < 0 ) {
-		idAFEntity_Base *af = static_cast<idAFEntity_Base *>( gameLocal.entities[ trace.c.entityNum ] );
+		idAFEntity_Base *af = static_cast<idAFEntity_Base*>( gameLocal.entities[ trace.c.entityNum ] );
 		if ( af && af->IsType( idAFEntity_Base::Type ) && af->IsActiveAF() ) {
 			ReturnString( af->GetAnimator()->GetJointName( CLIPMODEL_ID_TO_JOINT_HANDLE( trace.c.id ) ) );
 			return;
@@ -1590,7 +1581,7 @@ idThread::Event_GetTraceBody
 */
 void idThread::Event_GetTraceBody( void ) {
 	if ( trace.fraction < 1.0f && trace.c.id < 0 ) {
-		idAFEntity_Base *af = static_cast<idAFEntity_Base *>( gameLocal.entities[ trace.c.entityNum ] );
+		idAFEntity_Base *af = static_cast<idAFEntity_Base*>( gameLocal.entities[ trace.c.entityNum ] );
 		if ( af && af->IsType( idAFEntity_Base::Type ) && af->IsActiveAF() ) {
 			int bodyId = af->BodyForClipModelId( trace.c.id );
 			idAFBody *body = af->GetAFPhysics()->GetBody( bodyId );
@@ -1659,7 +1650,7 @@ idThread::Event_SetShaderParm
 void idThread::Event_SetShaderParm( int parmnum, float value ) {
 	if ( ( parmnum < 0 ) || ( parmnum >= MAX_GLOBAL_SHADER_PARMS ) ) {
 		Error( "shader parm index (%d) out of range", parmnum );
-		return; // BFG
+		return;
 	}
 
 	gameLocal.globalShaderParms[ parmnum ] = value;
@@ -1920,93 +1911,86 @@ void idThread::Event_InfluenceActive( void ) {
 	idPlayer *player;
 
 	player = gameLocal.GetLocalPlayer();
-	if ( player && player->GetInfluenceLevel() ) {
+	if ( player != NULL && player->GetInfluenceLevel() ) {
 		idThread::ReturnInt( true );
 	} else {
 		idThread::ReturnInt( false );
 	}
 }
 
-// Grimm -->
 /*
 ================
-idThread::ExecCMD
+idGameEditExt::ThreadGetNum
 ================
 */
-void idThread::Event_ExecCMD( const char *text ) {
-	cmdSystem->BufferCommandText( CMD_EXEC_APPEND, text );
+int idGameEditExt::ThreadGetNum( const idThread *thread ) const {
+	return const_cast<idThread*>( thread )->GetThreadNum();
 }
 
-/* 
+/*
 ================
-idThread::Tip
-================
-*/
-void idThread::Event_Tip( const char *message ) {
-	idPlayer *player = gameLocal.GetLocalPlayer();
-	if ( player ) {
-		player->ShowTip( "", message, true );
-	}
-}
-
-/* 
-================
-idThread::GetPlayer
+idGameEditExt::ThreadGetName
 ================
 */
-void idThread::Event_GetPlayer( void ) {
-	idPlayer *player = gameLocal.GetLocalPlayer();
-	if ( player ) {
-		ReturnEntity( player ) ;
-	} else {
-		ReturnEntity( ( idEntity * )NULL );
-	}
-}
-// <---
-
-int idGameEditExt::ThreadGetNum(const idThread* thread) const
-{
-	return const_cast<idThread*>(thread)->GetThreadNum();
+const char *idGameEditExt::ThreadGetName( const idThread *thread) const {
+	return const_cast<idThread*>( thread )->GetThreadName();
 }
 
-const char*idGameEditExt::ThreadGetName(const idThread* thread) const
-{
-	return const_cast<idThread*>(thread)->GetThreadName();
-}
-
-int	idGameEditExt::GetTotalScriptThreads() const
-{
+/*
+================
+idGameEditExt::GetTotalScriptThreads
+================
+*/
+int	idGameEditExt::GetTotalScriptThreads() const {
 	return idThread::GetThreads().Num();
 }
 
-const idThread*idGameEditExt::GetThreadByIndex(int index) const
-{
+/*
+================
+idGameEditExt::GetThreadByIndex
+================
+*/
+const idThread *idGameEditExt::GetThreadByIndex( int index ) const {
 	return idThread::GetThreads()[index];
 }
 
-bool idGameEditExt::ThreadIsDoneProcessing(const idThread* thread) const
-{
-	return const_cast<idThread*>(thread)->IsDoneProcessing();
+/*
+================
+idGameEditExt::ThreadIsDoneProcessing
+================
+*/
+bool idGameEditExt::ThreadIsDoneProcessing( const idThread *thread ) const {
+	return const_cast<idThread*>( thread )->IsDoneProcessing();
 }
 
-bool idGameEditExt::ThreadIsWaiting(const idThread* thread) const
-{
-	return const_cast<idThread*>(thread)->IsWaiting();
+/*
+================
+idGameEditExt::ThreadIsWaiting
+================
+*/
+bool idGameEditExt::ThreadIsWaiting( const idThread *thread ) const {
+	return const_cast<idThread*>( thread )->IsWaiting();
 }
 
-bool idGameEditExt::ThreadIsDying(const idThread* thread) const
-{
-	return const_cast<idThread*>(thread)->IsDying();
+/*
+================
+idGameEditExt::ThreadIsDying
+================
+*/
+bool idGameEditExt::ThreadIsDying( const idThread* thread ) const {
+	return const_cast<idThread*>( thread )->IsDying();
 }
 
-void idGameEditExt::MSG_WriteThreadInfo(idBitMsg* msg, const idThread* thread, const idInterpreter* interpreter)
-{
-	msg->WriteString(const_cast<idThread*>(thread)->GetThreadName());
-	msg->WriteInt(const_cast<idThread*>(thread)->GetThreadNum());
-
-	msg->WriteBits((int)(thread == interpreter->GetThread()), 1);
-	msg->WriteBits((int)const_cast<idThread*>(thread)->IsDoneProcessing(), 1);
-	msg->WriteBits((int)const_cast<idThread*>(thread)->IsWaiting(), 1);
-	msg->WriteBits((int)const_cast<idThread*>(thread)->IsDying(), 1);
+/*
+================
+idGameEditExt::MSG_WriteThreadInfo
+================
+*/
+void idGameEditExt::MSG_WriteThreadInfo( idBitMsg *msg, const idThread *thread, const idInterpreter *interpreter ) {
+	msg->WriteString( const_cast<idThread*>( thread )->GetThreadName() );
+	msg->WriteInt( const_cast<idThread*>( thread )->GetThreadNum());
+	msg->WriteBits( ( int )( thread == interpreter->GetThread() ), 1 );
+	msg->WriteBits( ( int )const_cast<idThread*>( thread )->IsDoneProcessing(), 1 );
+	msg->WriteBits( ( int )const_cast<idThread*>( thread )->IsWaiting(), 1 );
+	msg->WriteBits( ( int )const_cast<idThread*>( thread )->IsDying(), 1 );
 }
-
