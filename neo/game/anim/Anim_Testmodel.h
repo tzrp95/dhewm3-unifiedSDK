@@ -64,12 +64,12 @@ public:
 
 	static void				KeepTestModel_f( const idCmdArgs &args );
 	static void				TestModel_f( const idCmdArgs &args );
-	static void				ArgCompletion_TestModel( const idCmdArgs &args, void(*callback)( const char *s ) );
+	static void				ArgCompletion_TestModel( const idCmdArgs &args, void( *callback )( const char *s ) );
 	static void				TestSkin_f( const idCmdArgs &args );
 	static void				TestShaderParm_f( const idCmdArgs &args );
 	static void				TestParticleStopTime_f( const idCmdArgs &args );
 	static void				TestAnim_f( const idCmdArgs &args );
-	static void				ArgCompletion_TestAnim( const idCmdArgs &args, void(*callback)( const char *s ) );
+	static void				ArgCompletion_TestAnim( const idCmdArgs &args, void( *callback )( const char *s ) );
 	static void				TestBlend_f( const idCmdArgs &args );
 	static void				TestModelNextAnim_f( const idCmdArgs &args );
 	static void				TestModelPrevAnim_f( const idCmdArgs &args );

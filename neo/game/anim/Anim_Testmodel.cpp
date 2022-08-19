@@ -37,7 +37,7 @@ If you have questions concerning this license or the applicable additional terms
 /*
 =============================================================================
 
-  MODEL TESTING
+	MODEL TESTING
 
 Model viewing can begin with either "testmodel <modelname>"
 
@@ -47,12 +47,13 @@ The names must be the full pathname after the basedir, like
 Extension will default to ".ase" if not specified.
 
 Testmodel will create a fake entity 100 units in front of the current view
-position, directly facing the viewer.  It will remain immobile, so you can
+position, directly facing the viewer. It will remain immobile, so you can
 move around it to view it from different angles.
 
-  g_testModelRotate
-  g_testModelAnimate
-  g_testModelBlend
+ *	g_testModelRotate
+ *	g_testModelAnimate
+ *	g_testModelBlend
+ *	g_testModelPitch
 
 =============================================================================
 */
@@ -149,7 +150,7 @@ void idTestModel::Spawn( void ) {
 			// copy any sounds in case we have frame commands on the head
 			idDict				args;
 			const idKeyValue	*sndKV = spawnArgs.MatchPrefix( "snd_", NULL );
-			while( sndKV ) {
+			while ( sndKV ) {
 				args.Set( sndKV->GetKey(), sndKV->GetValue() );
 				sndKV = spawnArgs.MatchPrefix( "snd_", sndKV );
 			}
@@ -165,7 +166,7 @@ void idTestModel::Spawn( void ) {
 			headAnimator = head.GetEntity()->GetAnimator();
 
 			// set up the list of joints to copy to the head
-			for( kv = spawnArgs.MatchPrefix( "copy_joint", NULL ); kv != NULL; kv = spawnArgs.MatchPrefix( "copy_joint", kv ) ) {
+			for ( kv = spawnArgs.MatchPrefix( "copy_joint", NULL ); kv != NULL; kv = spawnArgs.MatchPrefix( "copy_joint", kv ) ) {
 				jointName = kv->GetKey();
 
 				if ( jointName.StripLeadingOnce( "copy_joint_world " ) ) {
@@ -260,6 +261,7 @@ void idTestModel::Think( void ) {
 			if ( head.GetEntity() ) {
 				head.GetEntity()->StopSound( SND_CHANNEL_ANY, false );
 			}
+
 			switch( g_testModelAnimate.GetInteger() ) {
 			default:
 			case 0:
@@ -347,7 +349,7 @@ void idTestModel::Think( void ) {
 
 		if ( headAnimator ) {
 			// copy the animation from the body to the head
-			for( i = 0; i < copyJoints.Num(); i++ ) {
+			for ( i = 0; i < copyJoints.Num(); i++ ) {
 				if ( copyJoints[ i ].mod == JOINTMOD_WORLD_OVERRIDE ) {
 					idMat3 mat = head.GetEntity()->GetPhysics()->GetAxis().Transpose();
 					GetJointWorldTransform( copyJoints[ i ].from, gameLocal.time, pos, axis );
@@ -364,12 +366,16 @@ void idTestModel::Think( void ) {
 
 		// update rotation
 		RunPhysics();
-
 		physicsObj.GetAngles( ang );
-		physicsObj.SetAngularExtrapolation( extrapolation_t(EXTRAPOLATION_LINEAR|EXTRAPOLATION_NOSTOP), gameLocal.time, 0, ang, idAngles( 0, g_testModelRotate.GetFloat() * 360.0f / 60.0f, 0 ), ang_zero );
+		physicsObj.SetAngularExtrapolation( extrapolation_t( EXTRAPOLATION_LINEAR|EXTRAPOLATION_NOSTOP ), gameLocal.time, 0, ang, idAngles( 0, g_testModelRotate.GetFloat() * 360.0f / 60.0f, 0 ), ang_zero );
 
+		// update pitch
+		idAngles pitchAng = GetPhysics()->GetAxis().ToAngles();
+		pitchAng.pitch = g_testModelPitch.GetFloat();
+		physicsObj.SetAxis( pitchAng.ToMat3() );
+		
 		idClipModel *clip = physicsObj.GetClipModel();
-		if ( clip && animator.ModelDef() ) {
+		if ( clip != NULL && animator.ModelDef() ) {
 			idVec3 neworigin;
 			idMat3 axis;
 			jointHandle_t joint;
@@ -528,19 +534,17 @@ idTestModel::TestAnim
 ================
 */
 void idTestModel::TestAnim( const idCmdArgs &args ) {
-	idStr			name;
-	int				animNum;
-	//const idAnim	*newanim;
+	idStr	name;
+	int		animNum;
 
 	if ( args.Argc() < 2 ) {
 		gameLocal.Printf( "usage: testanim <animname>\n" );
 		return;
 	}
-
-	//newanim = NULL;
-
+	
 	name = args.Argv( 1 );
 #if 0
+	const idAnim *newanim = NULL;
 	if ( strstr( name, ".ma" ) || strstr( name, ".mb" ) ) {
 		const idMD5Anim	*md5anims[ ANIM_MaxSyncedAnims ];
 		idModelExport exporter;
@@ -595,21 +599,18 @@ idTestModel::BlendAnim
 =====================
 */
 void idTestModel::BlendAnim( const idCmdArgs &args ) {
-	int anim1;
-	int anim2;
-
 	if ( args.Argc() < 4 ) {
 		gameLocal.Printf( "usage: testblend <anim1> <anim2> <frames>\n" );
 		return;
 	}
 
-	anim1 = gameLocal.testmodel->animator.GetAnim( args.Argv( 1 ) );
+	int anim1 = gameLocal.testmodel->animator.GetAnim( args.Argv( 1 ) );
 	if ( !anim1 ) {
 		gameLocal.Printf( "Animation '%s' not found.\n", args.Argv( 1 ) );
 		return;
 	}
 
-	anim2 = gameLocal.testmodel->animator.GetAnim( args.Argv( 2 ) );
+	int anim2 = gameLocal.testmodel->animator.GetAnim( args.Argv( 2 ) );
 	if ( !anim2 ) {
 		gameLocal.Printf( "Animation '%s' not found.\n", args.Argv( 2 ) );
 		return;
@@ -656,12 +657,9 @@ Sets a skin on an existing testModel
 =================
 */
 void idTestModel::TestSkin_f( const idCmdArgs &args ) {
-	idVec3		offset;
+	idPlayer	*player = gameLocal.GetLocalPlayer();
 	idStr		name;
-	idPlayer *	player;
-	idDict		dict;
 
-	player = gameLocal.GetLocalPlayer();
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -690,12 +688,8 @@ Sets a shaderParm on an existing testModel
 =================
 */
 void idTestModel::TestShaderParm_f( const idCmdArgs &args ) {
-	idVec3		offset;
-	idStr		name;
-	idPlayer *	player;
-	idDict		dict;
+	idPlayer	*player = gameLocal.GetLocalPlayer();	
 
-	player = gameLocal.GetLocalPlayer();
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -711,13 +705,13 @@ void idTestModel::TestShaderParm_f( const idCmdArgs &args ) {
 		return;
 	}
 
-	int	parm = atoi( args.Argv( 1 ) );
+	int parm = atoi( args.Argv( 1 ) );
 	if ( parm < 0 || parm >= MAX_ENTITY_SHADER_PARMS ) {
 		common->Printf( "parmNum %i out of range\n", parm );
 		return;
 	}
 
-	float	value;
+	float value;
 	if ( !idStr::Icmp( args.Argv( 2 ), "time" ) ) {
 		value = gameLocal.time * -0.001;
 	} else {
@@ -738,11 +732,10 @@ can then be moved around
 void idTestModel::TestModel_f( const idCmdArgs &args ) {
 	idVec3			offset;
 	idStr			name;
-	idPlayer *		player;
-	const idDict *	entityDef;
+	const idDict	*entityDef;
 	idDict			dict;
+	idPlayer		*player = player = gameLocal.GetLocalPlayer();
 
-	player = gameLocal.GetLocalPlayer();
 	if ( !player || !gameLocal.CheatsOk() ) {
 		return;
 	}
@@ -800,7 +793,7 @@ void idTestModel::TestModel_f( const idCmdArgs &args ) {
 idTestModel::ArgCompletion_TestModel
 =====================
 */
-void idTestModel::ArgCompletion_TestModel( const idCmdArgs &args, void(*callback)( const char *s ) ) {
+void idTestModel::ArgCompletion_TestModel( const idCmdArgs &args, void( *callback )( const char *s ) ) {
 	int i, num;
 
 	num = declManager->GetNumDecls( DECL_ENTITYDEF );
@@ -849,10 +842,10 @@ void idTestModel::TestAnim_f( const idCmdArgs &args ) {
 idTestModel::ArgCompletion_TestAnim
 =====================
 */
-void idTestModel::ArgCompletion_TestAnim( const idCmdArgs &args, void(*callback)( const char *s ) ) {
+void idTestModel::ArgCompletion_TestAnim( const idCmdArgs &args, void( *callback )( const char *s ) ) {
 	if ( gameLocal.testmodel ) {
 		idAnimator *animator = gameLocal.testmodel->GetAnimator();
-		for( int i = 0; i < animator->NumAnims(); i++ ) {
+		for ( int i = 0; i < animator->NumAnims(); i++ ) {
 			callback( va( "%s %s", args.Argv( 0 ), animator->AnimFullName( i ) ) );
 		}
 	}

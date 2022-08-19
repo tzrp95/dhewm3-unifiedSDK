@@ -35,11 +35,13 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "anim/Anim.h"
 
-/***********************************************************************
+/*
+===============================================================================
 
-	Maya conversion functions
+	idModelExport
 
-***********************************************************************/
+===============================================================================
+*/
 
 static idStr				Maya_Error;
 
@@ -99,7 +101,7 @@ bool idModelExport::CheckMayaInstall( void ) {
 		return false;
 	}
 
-	lres = RegQueryValueEx( hKey, "MAYA_INSTALL_LOCATION", NULL, (unsigned long*)&lType, (unsigned char*)NULL, (unsigned long*)NULL );
+	lres = RegQueryValueEx( hKey, "MAYA_INSTALL_LOCATION", NULL, ( unsigned long* )&lType, ( unsigned char* )NULL, ( unsigned long* )NULL );
 
 	RegCloseKey( hKey );
 
@@ -243,10 +245,8 @@ bool idModelExport::ConvertMayaToMD5( void ) {
 	}
 
 	// we need to make sure we have a full path, so convert the filename to an OS path
-	// D3XP : we work out of the cdpath, at least until we get Alienbrain
-	// Xyzz : Removed cdpath
-	src = fileSystem->RelativePathToOSPath( src /*,"fs_cdpath"*/ );
-	dest = fileSystem->RelativePathToOSPath( dest /*,"fs_cdpath"*/ );
+	src = fileSystem->RelativePathToOSPath( src );
+	dest = fileSystem->RelativePathToOSPath( dest );
 
 	dest.ExtractFilePath( path );
 	if ( path.Length() ) {
@@ -254,7 +254,7 @@ bool idModelExport::ConvertMayaToMD5( void ) {
 	}
 
 	// get the os path in case it needs to create one
-	path = fileSystem->RelativePathToOSPath( "" /*,"fs_cdpath"*/ );
+	path = fileSystem->RelativePathToOSPath( "" );
 
 	common->SetRefreshOnPrint( true );
 	Maya_Error = Maya_ConvertModel( path, commandLine );
@@ -347,7 +347,7 @@ bool idModelExport::ParseOptions( idLexer &lex ) {
 	src = token;
 	dest = token;
 
-	while( lex.ReadToken( &token ) ) {
+	while ( lex.ReadToken( &token ) ) {
 		if ( token == "-" ) {
 			if ( !lex.ReadToken( &token ) ) {
 				lex.Error( "Expecting option" );
@@ -409,7 +409,6 @@ int idModelExport::ParseExportSection( idParser &parser ) {
 	int		count;
 
 	const char *game = cvarSystem->GetCVarString( "fs_game" );
-
 	if ( strlen( game ) == 0 ) {
 		game = BASE_GAMEDIR;
 	}
@@ -437,8 +436,7 @@ int idModelExport::ParseExportSection( idParser &parser ) {
 
 	lex.SetFlags( LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWPATHNAMES | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
 
-	while( 1 ) {
-
+	while ( 1 ) {
 		if ( !parser.ReadToken( &command ) ) {
 			parser.Error( "Unexpoected end-of-file" );
 			break;
@@ -515,16 +513,14 @@ idModelExport::ExportDefFile
 int idModelExport::ExportDefFile( const char *filename ) {
 	idParser	parser( LEXFL_NOSTRINGCONCAT | LEXFL_ALLOWPATHNAMES | LEXFL_ALLOWMULTICHARLITERALS | LEXFL_ALLOWBACKSLASHSTRINGCONCAT );
 	idToken		token;
-	int			count;
-
-	count = 0;
+	int			count = 0;
 
 	if ( !parser.LoadFile( filename ) ) {
 		gameLocal.Printf( "Could not load '%s'\n", filename );
 		return 0;
 	}
 
-	while( parser.ReadToken( &token ) ) {
+	while ( parser.ReadToken( &token ) ) {
 		if ( token == "export" ) {
 			count += ParseExportSection( parser );
 		} else {
@@ -542,12 +538,9 @@ idModelExport::ExportModels
 ================
 */
 int idModelExport::ExportModels( const char *pathname, const char *extension ) {
-	int	count;
-
-	count = 0;
-
-	idFileList *files;
 	int			i;
+	int			count = 0;
+	idFileList *files;
 
 	if ( !CheckMayaInstall() ) {
 		// if Maya isn't installed, don't bother checking if we have anims to export
@@ -558,8 +551,6 @@ int idModelExport::ExportModels( const char *pathname, const char *extension ) {
 	if ( !g_exportMask.GetString()[ 0 ] ) {
 		gameLocal.Printf( "  Export mask: '%s'\n", g_exportMask.GetString() );
 	}
-
-	count = 0;
 
 	files = fileSystem->ListFiles( pathname, extension );
 	for( i = 0; i < files->GetNumFiles(); i++ ) {
