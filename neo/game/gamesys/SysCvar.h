@@ -234,7 +234,6 @@ extern idCVar	g_testFullscreenFX;
 extern idCVar	g_testHelltimeFX;
 extern idCVar	g_testMultiplayerFX;
 extern idCVar	g_moveableDamageScale;
-extern idCVar	g_testBloomSpeed;
 extern idCVar	g_testBloomIntensity;
 extern idCVar	g_testBloomNumPasses;
 
@@ -285,134 +284,25 @@ extern idCVar	g_CTFArrows;
 extern idCVar	net_clientSelfSmoothing;
 extern idCVar	net_clientLagOMeter;
 
-extern const char *si_gameTypeArgs[];
+extern const char	*si_gameTypeArgs[];
+extern const char	*ui_skinArgs[];
 
-extern const char *ui_skinArgs[];
-
-/*
-================================
-New CVars from here
-================================
-*/
-
+// new CVars
 extern idCVar	aas_showAll;
 
-extern idCVar	af_physics;
-extern idCVar	af_useBodyDensityBuoyancy;
-extern idCVar	af_useFixedDensityBuoyancy;
+extern idCVar	ai_think;
 
-extern idCVar	rb_showBuoyancy;
+extern idCVar	actor_noDamage;
 
-// HDR (Denton)
-extern idCVar	r_useHDR;
-extern idCVar	r_hdrPostProcess;
-extern idCVar	r_hdrMiddleGray;
-extern idCVar	r_hdrBrightPassThreshold;
-extern idCVar	r_hdrBrightPassOffset;
-extern idCVar	r_hdrMinLuminance;
-extern idCVar	r_hdrMaxLuminance;
-extern idCVar	r_hdrEyeAdjustmentDelay;
-extern idCVar	r_hdrEyeAdjustmentBias;
-extern idCVar	r_hdrEyeAdjustmentBloomBias;
-extern idCVar	r_hdrColorCurveBias;
-extern idCVar	r_hdrSceneExposure;
-extern idCVar	r_hdrGammaCorrection;
-extern idCVar	r_hdrMaxColorIntensity;
-extern idCVar	r_hdrBloomIntensity;
-extern idCVar	r_hdrHaloIntensity;
-extern idCVar	r_hdrVignetteBias;
-extern idCVar	r_hdrLumUpdateRate;
-extern idCVar	r_hdrEnableDebugMode;
-extern idCVar	r_hdrDebugTextureIndex;
+extern idCVar	g_testStuff;
+extern idCVar	g_testModelPitch;
+extern idCVar	g_showModelNames;
+extern idCVar	g_maxShowDistanceWorld;
 
-// Sikkpin 
-extern idCVar	r_useEdgeAA;
-extern idCVar	r_edgeAASampleScale;
-extern idCVar	r_edgeAAFilterScale;
+extern idCVar	g_weaponDepthHack;
+extern idCVar	g_weaponFlashShadows;
 
-extern idCVar	r_useColorGrading;
-extern idCVar	r_colorGradingParm;
-extern idCVar	r_colorGradingType;
-extern idCVar	r_colorGradingSharpness;
-
-extern idCVar	r_useAmbientLight;
-extern idCVar	r_ambientLightRadius;
-extern idCVar	r_ambientLightColor;
-
-extern idCVar	r_useFilmgrain;
-extern idCVar	r_filmgrainBlendMode;
-extern idCVar	r_filmgrainScale;
-extern idCVar	r_filmgrainStrength;
-
-extern idCVar	g_useExplosionFX;
-extern idCVar	g_explosionFXTime;
-extern idCVar	g_explosionFXScale;
-
-// Game Related ( Various )
-extern idCVar	g_testStuff;				// for various tests
-extern idCVar	g_weaponDepthHack;			// use weapon depth hack
-extern idCVar	g_muzzleFlashShadows;		// weapon muzzleflash shadows toggle
-extern idCVar	g_grabberProjDamageScale;	// update the grabber caught projectiles to DentonMod code
-
-extern idCVar	g_gibVelocity;
-extern idCVar	g_gibLifeTime;
-
-extern idCVar	g_weaponSprint;
-extern idCVar	g_weaponAwareness;
-
-extern idCVar	g_player;					// change the player
-extern idCVar	g_playerOverride;			// override the automatic player selection
-
-extern idCVar	pm_thirdPersonOffset;
-extern idCVar	pm_awarenessDistance;
-
-extern idCVar	pm_abilityModifierPassive;	// passive power modifier	
-extern idCVar	pm_abilityModifierActive;	// active power modifier
-
-extern idCVar	pm_energy;
-extern idCVar	pm_energyrate;
-
-extern idCVar	pm_healthRegenTime;
-extern idCVar	pm_healthRegenDelay;
-extern idCVar	pm_healthRegenAmt;
-extern idCVar	pm_healthRegenLimit;
-extern idCVar	pm_healthRegenStepsNormal;
-extern idCVar	pm_healthRegenStepsHard;
-
-extern idCVar	pm_armorRegenReq;
-extern idCVar	pm_armorRegenTime;
-extern idCVar	pm_armorRegenDelay;
-extern idCVar	pm_armorRegenAmt;
-extern idCVar	pm_armorRegenLimit;
-extern idCVar	pm_armorRegenStepsNormal;
-extern idCVar	pm_armorRegenStepsHard;
-extern idCVar	pm_armorRegenSoundTime;
-
-extern idCVar	pm_doubleJumpPower;
-
-extern idCVar	pm_godTime;
-extern idCVar	pm_godRechargeRate;
-
-extern idCVar	pm_invisTime;
-extern idCVar	pm_invisDrainTime;
-extern idCVar	pm_invisRechargeRate;
-
-extern idCVar	pm_strengthTime;
-extern idCVar	pm_strengthDrainTime;
-extern idCVar	pm_strengthRechargeRate;
-extern idCVar	pm_strengthMultiplier;
-
-extern idCVar	pm_speedTime;
-extern idCVar	pm_speedDrainTime;
-extern idCVar	pm_speedRechargeRate;
-extern idCVar	pm_speedMultiplier;
-
-extern idCVar	pm_longJumpVelocity;
-extern idCVar	pm_longJumpVelocityZ;
-extern idCVar	pm_longJumpRechargeRate;
-
-extern idCVar	pm_maxDashes;
-extern idCVar	pm_dashDistance;
-extern idCVar	pm_dashRechargeRate;
+extern idCVar	g_player;
+extern idCVar	g_playerOverride;
 
 #endif /* !__SYS_CVAR_H__ */
